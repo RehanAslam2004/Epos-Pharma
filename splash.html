@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>EPOS Pharma</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1f2937;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .logo-image {
+            width: 84px;
+            height: 84px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 25px -5px rgba(15, 157, 88, 0.4);
+            object-fit: contain;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+            background: linear-gradient(to right, #0f172a, #334155);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 13px;
+            font-weight: 500;
+            color: #64748b;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+        }
+
+        .loader {
+            width: 180px;
+            height: 4px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loader-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+            border-radius: 4px;
+            animation: loading 1.5s infinite ease-in-out;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+        }
+
+        @keyframes loading {
+            0% {
+                left: -40%;
+            }
+
+            50% {
+                left: 100%;
+                width: 60%;
+            }
+
+            100% {
+                left: 100%;
+            }
+        }
+
+        .status {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #0f172a;
+                color: #f8fafc;
+            }
+
+            h1 {
+                background: linear-gradient(to right, #f8fafc, #cbd5e1);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            p {
+                color: #94a3b8;
+            }
+
+            .loader {
+                background: #1e293b;
+            }
+
+            .status {
+                color: #64748b;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <img src="assets/icon.png" alt="EPOS Pharma" class="logo-image" />
+    <h1>EPOS Pharma</h1>
+    <p>Pharmacy Point of Sale</p>
+
+    <div class="loader">
+        <div class="loader-bar"></div>
+    </div>
+    <div class="status">Initializing Database Server...</div>
+
+    <script>
+        // Simple script to update text after a short delay since backend takes ~1.5s to boot
+        setTimeout(() => {
+            document.querySelector('.status').innerText = 'Starting React Interface...';
+        }, 1200);
+    </script>
+</body>
+
+</html>

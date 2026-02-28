@@ -5,6 +5,7 @@ const router = express.Router();
 
 // POST /api/sales
 router.post('/', (req, res) => {
+    let transactionActive = false;
     try {
         const { customer_id, items, discount, tax, payment_method, payment_details, notes } = req.body;
         if (!items || items.length === 0) return res.status(400).json({ error: 'At least one item is required' });
@@ -15,10 +16,16 @@ router.post('/', (req, res) => {
         const taxAmount = tax || 0;
         const total = subtotal - discountAmount + taxAmount;
 
+        const { dbExec } = require('../database');
+
+        dbExec('BEGIN TRANSACTION');
+        transactionActive = true;
+
         // Create sale
         const saleResult = dbRun(
             `INSERT INTO sales (customer_id, subtotal, discount, tax, total, payment_method, payment_details, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [customer_id || null, subtotal, discountAmount, taxAmount, total, payment_method || 'cash', payment_details || '', notes || '']
+            [customer_id || null, subtotal, discountAmount, taxAmount, total, payment_method || 'cash', payment_details || '', notes || ''],
+            true // skipSave during transaction
         );
         const saleId = saleResult.lastInsertRowid;
 
@@ -26,20 +33,33 @@ router.post('/', (req, res) => {
         for (const item of items) {
             dbRun(
                 `INSERT INTO sale_items (sale_id, product_id, product_name, quantity, price, subtotal) VALUES (?, ?, ?, ?, ?, ?)`,
-                [saleId, item.product_id, item.product_name, item.quantity, item.price, item.price * item.quantity]
+                [saleId, item.product_id, item.product_name, item.quantity, item.price, item.price * item.quantity],
+                true // skipSave
             );
-            const stockResult = dbRun('UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?', [item.quantity, item.product_id, item.quantity]);
+            const stockResult = dbRun('UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?', [item.quantity, item.product_id, item.quantity], true);
             if (stockResult.changes === 0) {
+                try { dbExec('ROLLBACK'); } catch (rbErr) { } // ignore rollback errors
+                transactionActive = false;
                 return res.status(400).json({ error: `Insufficient stock for product: ${item.product_name}` });
             }
         }
 
+        dbExec('COMMIT');
+        transactionActive = false;
         saveDb();
 
         const sale = dbGet(`SELECT s.*, c.name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s.id = ?`, [saleId]);
         const saleItems = dbAll('SELECT * FROM sale_items WHERE sale_id = ?', [saleId]);
         res.json({ ...sale, items: saleItems });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        if (transactionActive) {
+            try {
+                const { dbExec } = require('../database');
+                dbExec('ROLLBACK');
+            } catch (rbErr) { } // ignore rollback errors if transaction already dropped
+        }
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // GET /api/sales

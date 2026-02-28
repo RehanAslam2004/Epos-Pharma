@@ -43,6 +43,13 @@ export default function POS() {
         searchRef.current?.focus();
     }, []);
 
+    // Prevent window close if cart has items
+    useEffect(() => {
+        if (window.electronAPI && window.electronAPI.setCanClose) {
+            window.electronAPI.setCanClose(cart.length === 0);
+        }
+    }, [cart]);
+
     // Keyboard shortcuts
     useEffect(() => {
         const handler = (e) => {

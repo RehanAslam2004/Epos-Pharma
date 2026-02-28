@@ -76,12 +76,19 @@ export const api = {
     deleteCustomer: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
 
     // Suppliers
-    getSuppliers: (params = '') => request(`/suppliers?${params}`),
+    getSuppliers: (search = '') => request(`/suppliers${search ? `?search=${search}` : ''}`),
     getSupplier: (id) => request(`/suppliers/${id}`),
     getSupplierProducts: (id) => request(`/suppliers/${id}/products`),
     createSupplier: (data) => request('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
     updateSupplier: (id, data) => request(`/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteSupplier: (id) => request(`/suppliers/${id}`, { method: 'DELETE' }),
+    getSupplierLedger: (id) => request(`/suppliers/${id}/ledger`),
+    addSupplierPayment: (id, payload) => request(`/suppliers/${id}/payment`, { method: 'POST', body: JSON.stringify(payload) }),
+
+    // Purchases (Phase 1.5)
+    getPurchases: () => request('/purchases'),
+    getPurchase: (id) => request(`/purchases/${id}`),
+    createPurchase: (payload) => request('/purchases', { method: 'POST', body: JSON.stringify(payload) }),
 
     // Reports
     getDashboard: () => request('/reports/dashboard'),

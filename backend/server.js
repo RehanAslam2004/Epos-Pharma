@@ -26,6 +26,7 @@ function createApp() {
     app.use('/api/sales', authMiddleware, salesRoutes);
     app.use('/api/customers', authMiddleware, customerRoutes);
     app.use('/api/suppliers', authMiddleware, supplierRoutes);
+    app.use('/api/purchases', authMiddleware, require('./routes/purchases'));
     app.use('/api/reports', authMiddleware, reportRoutes);
     app.use('/api/settings', authMiddleware, settingsRoutes);
     // Notifications endpoint

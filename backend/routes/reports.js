@@ -78,11 +78,20 @@ router.get('/dashboard', (req, res) => {
         const topProducts = dbAll(`SELECT si.product_name, SUM(si.quantity) as qty FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE date(s.date) >= date('now', '-30 days') GROUP BY si.product_id ORDER BY qty DESC LIMIT 5`);
         const recentSales = dbAll(`SELECT s.id, s.total, s.payment_method, s.date, c.name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id ORDER BY s.date DESC LIMIT 5`);
 
+        // Calculate days since last backup
+        const lastBackup = dbGet('SELECT date FROM backups ORDER BY date DESC LIMIT 1');
+        let daysSinceBackup = 999; // Default to a high number if never backed up
+        if (lastBackup && lastBackup.date) {
+            const diffTime = Math.abs(new Date() - new Date(lastBackup.date));
+            daysSinceBackup = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        }
+
         res.json({
             todaySales: todaySales.count, todayRevenue: todaySales.revenue,
             monthRevenue: monthRevenue.revenue, lowStockCount: lowStockCount.count,
             newCustomers: newCustomers.count, totalProducts: totalProducts.count,
             totalCustomers: totalCustomers.count, weeklySales, topProducts, recentSales,
+            daysSinceBackup,
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

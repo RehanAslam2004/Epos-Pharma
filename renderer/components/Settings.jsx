@@ -35,11 +35,11 @@ export default function Settings() {
 
     if (loading) return <div className="flex items-center justify-center h-[60vh]"><div className="w-7 h-7 border-[3px] border-gray-200 dark:border-gray-700 border-t-sea-600 rounded-full animate-spin" /></div>;
 
-    const tabItems = [{ key: 'general', icon: '🏥', label: 'General' }, { key: 'appearance', icon: '🎨', label: 'Appearance' }, { key: 'license', icon: '🔑', label: 'License' }, { key: 'backup', icon: '💾', label: 'Backup' }, { key: 'users', icon: '👥', label: 'Users' }];
+    const tabItems = [{ key: 'general', icon: '🏥', label: 'General' }, { key: 'appearance', icon: '🎨', label: 'Appearance' }, { key: 'users', icon: '👥', label: 'Users' }, { key: 'license', icon: '🔑', label: 'License' }, { key: 'backup', icon: '💾', label: 'Backup' }, { key: 'about', icon: 'ℹ️', label: 'About' }];
     const inputCls = "w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sea-500/30 focus:border-sea-500 transition-all";
 
     return (
-        <div className="p-6 animate-fade-up">
+        <div className="p-6 pb-20 max-w-5xl mx-auto animate-fade-up">
             <div className="mb-5"><h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Settings</h1><p className="text-sm text-gray-400 mt-0.5">System configuration</p></div>
 
             <div className="flex gap-2 mb-5">{tabItems.map(t => <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all ${tab === t.key ? 'bg-sea-50 dark:bg-sea-900/20 border-sea-400 text-sea-700 dark:text-sea-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'}`}><span className="text-base">{t.icon}</span>{t.label}</button>)}</div>
@@ -90,13 +90,47 @@ export default function Settings() {
                 </>}
             </div></div>}
 
-            {/* Backup */}
-            {tab === 'backup' && <div className="animate-fade-up space-y-4">
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Create Backup</h3></div><div className="p-5"><p className="text-sm text-gray-400 mb-4">Full database backup (products, sales, customers, settings).</p><button onClick={createBackup} disabled={saving} className="px-5 py-2 bg-gradient-to-r from-sea-500 to-sea-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60">{saving ? 'Creating...' : '💾 Backup Now'}</button></div></div>
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">History</h3></div>
-                    {backups.length === 0 ? <div className="py-10 text-center text-gray-400 text-sm">No backups</div> : <table className="w-full"><thead><tr className="text-[11px] uppercase tracking-wider font-semibold text-gray-400 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700"><th className="text-left px-5 py-3">Date</th><th className="text-left px-5 py-3">Size</th><th className="text-left px-5 py-3">Actions</th></tr></thead><tbody>{backups.map(b => <tr key={b.id} className="tbl-row border-b border-gray-50 dark:border-gray-700/50"><td className="px-5 py-3 text-xs text-gray-500">{new Date(b.date).toLocaleString()}</td><td className="px-5 py-3 text-xs text-gray-500">{b.size ? `${(b.size / 1024).toFixed(1)} KB` : '—'}</td><td className="px-5 py-3"><button onClick={() => restoreBackup(b.backup_file)} className="text-xs text-sea-600 hover:text-sea-700 font-medium">🔄 Restore</button></td></tr>)}</tbody></table>}
+            {/* Backups */}
+            {tab === 'backup' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">System Backups</h3><button onClick={createBackup} disabled={saving} className="px-3 py-1.5 bg-sea-50 dark:bg-sea-900/30 text-sea-600 dark:text-sea-400 font-semibold rounded-lg text-xs hover:bg-sea-100 dark:hover:bg-sea-800/50 transition-colors">Create Backup Now</button></div><div className="p-0"><table className="w-full text-left border-collapse text-sm"><thead><tr className="bg-gray-50/50 dark:bg-gray-800/50 text-gray-500 font-semibold flex"><th className="px-5 py-3 flex-1 font-semibold">Date</th><th className="px-5 py-3 w-40 font-semibold">File Size</th><th className="px-5 py-3 w-28 text-center font-semibold text-gray-400">Restore</th></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-700/50 flex flex-col max-h-[400px] overflow-y-auto">{backups.map(b => (<tr key={b.id} className="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group"><td className="px-5 py-3 flex-1 truncate text-gray-800 dark:text-gray-200">{new Date(b.date).toLocaleString()}</td><td className="px-5 py-3 w-40 text-gray-500">{(b.size / 1024).toFixed(1)} KB</td><td className="px-5 py-3 w-28 text-center"><button onClick={() => restoreBackup(b.backup_file)} className="text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 p-1.5 rounded transition-colors opacity-0 group-hover:opacity-100"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button></td></tr>))}</tbody></table>{backups.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No backups found</div>}</div></div>}
+
+            {/* About Tab */}
+            {tab === 'about' && (
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up">
+                    <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700">
+                        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Software Information</h3>
+                    </div>
+                    <div className="p-8 flex flex-col items-center justify-center text-center">
+                        <div className="w-20 h-20 mb-4 rounded-[1.25rem] overflow-hidden shadow-xl shadow-sea-500/20">
+                            <img src="/icon.png" alt="Logo" className="w-full h-full object-cover" />
+                        </div>
+                        <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">EPOS Pharma</h2>
+                        <span className="text-sm font-medium text-sea-600 dark:text-sea-400 bg-sea-50 dark:bg-sea-900/20 px-3 py-1 rounded-full mt-2 mb-6">Version 1.1.0 (Market Ready)</span>
+
+                        <div className="max-w-md w-full text-sm text-gray-500 dark:text-gray-400 space-y-4">
+                            <p>EPOS Pharma is a professional, high-performance Point of Sale system built explicitly for pharmacies to manage inventory, track sales, and analyze real-time business performance.</p>
+
+                            <div className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50 mt-6 text-left space-y-3">
+                                <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">Architecture</span>
+                                    <span>React 18 + Node.js (Electron)</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">Database Engine</span>
+                                    <span>SQLite (Local Enclave)</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">License Status</span>
+                                    <span className={trial?.is_licensed ? 'text-sea-600 font-bold' : 'text-amber-500 font-bold'}>{trial?.is_licensed ? 'Lifetime Activated' : 'Trial Version'}</span>
+                                </div>
+                            </div>
+
+                            <div className="pt-6 font-semibold text-xs uppercase tracking-wider text-gray-400">
+                                © 2026 EPOS Systems. All rights reserved.
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>}
+            )}
 
             {/* Users */}
             {tab === 'users' && <div className="animate-fade-up">

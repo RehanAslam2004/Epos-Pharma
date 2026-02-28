@@ -80,8 +80,8 @@ export default function SetupWizard({ onComplete }) {
                 <div className="bg-gradient-to-r from-sea-600 to-sea-500 p-6 text-white text-center relative overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform translate-x-10 -translate-y-10"></div>
                     <div className="flex justify-center mb-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-2xl backdrop-blur-sm flex items-center justify-center shadow-inner text-2xl">
-                            <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-2V1h-2v2H9V1H7v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 3a3 3 0 110 6 3 3 0 010-6zm0 14c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4z" /></svg>
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl shadow-sea-500/20 mb-6 relative">
+                            <img src="/icon.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight">Welcome to EPOS Pharma</h2>
@@ -184,6 +184,13 @@ export default function SetupWizard({ onComplete }) {
                                 <input type="text" name="licenseKey" value={form.licenseKey} onChange={handleChange} className="w-full max-w-sm px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-sea-500 focus:border-sea-500 outline-none transition-all dark:text-white text-center font-mono uppercase tracking-widest placeholder:normal-case placeholder:tracking-normal placeholder:font-sans" placeholder="Entry Key Here (Optional)" maxLength={19} />
                                 <p className="text-xs text-gray-400 mt-3 text-center">Leave blank to start your 15-day free trial.</p>
                             </div>
+
+                            <div className="mt-8 flex items-start justify-center gap-3">
+                                <input type="checkbox" id="terms" checked={form.agreedToTerms || false} onChange={e => setForm({ ...form, agreedToTerms: e.target.checked })} className="mt-1 w-4 h-4 text-sea-600 bg-gray-100 border-gray-300 rounded focus:ring-sea-500 dark:focus:ring-sea-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+                                <label htmlFor="terms" className="text-xs text-gray-500 dark:text-gray-400 max-w-md">
+                                    I agree to the <a href="#" className="font-semibold text-sea-600 dark:text-sea-400 hover:underline">End User License Agreement</a> and understand that my Machine ID is collected to generate a hardware-bound software license.
+                                </label>
+                            </div>
                         </div>
                     )}
 
@@ -201,7 +208,7 @@ export default function SetupWizard({ onComplete }) {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                         </button>
                     ) : (
-                        <button onClick={handleFinish} disabled={loading} className="px-6 py-2.5 bg-gradient-to-r from-sea-600 to-sea-500 hover:from-sea-700 hover:to-sea-600 text-white rounded-xl font-medium shadow-lg shadow-sea-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed">
+                        <button onClick={handleFinish} disabled={loading || !form.agreedToTerms} className="px-6 py-2.5 bg-gradient-to-r from-sea-600 to-sea-500 hover:from-sea-700 hover:to-sea-600 text-white rounded-xl font-medium shadow-lg shadow-sea-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                             {loading ? 'Finalizing Setup...' : (form.licenseKey ? 'Activate License' : 'Start 15-Day Trial')}
                         </button>
                     )}

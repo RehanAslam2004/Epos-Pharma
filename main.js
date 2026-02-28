@@ -3,13 +3,35 @@ const path = require('path');
 const { startServer } = require('./backend/server');
 
 let mainWindow;
+let splashWindow;
 let serverInstance;
+let canCloseApp = true;
 
 const isDev = !app.isPackaged;
 
+// Helper to handle close request
+ipcMain.on('set-can-close', (event, canClose) => {
+    canCloseApp = canClose;
+});
+
 async function createWindow() {
+    // Show splash screen immediately
+    splashWindow = new BrowserWindow({
+        width: 400,
+        height: 350,
+        transparent: false,
+        frame: false,
+        alwaysOnTop: true,
+        icon: path.join(__dirname, 'assets', 'icon.png'),
+    });
+    splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+
     // Start the Express backend
-    serverInstance = await startServer();
+    try {
+        serverInstance = await startServer();
+    } catch (e) {
+        console.error("Backend Server failed to start:", e);
+    }
 
     mainWindow = new BrowserWindow({
         width: 1400,
@@ -32,14 +54,33 @@ async function createWindow() {
 
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173');
-        // Uncomment to open DevTools by default in dev
-        // mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
     }
 
     mainWindow.once('ready-to-show', () => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close();
+        }
         mainWindow.show();
+    });
+
+    mainWindow.on('close', (e) => {
+        if (!canCloseApp) {
+            e.preventDefault();
+            const { dialog } = require('electron');
+            const choice = dialog.showMessageBoxSync(mainWindow, {
+                type: 'warning',
+                buttons: ['Yes, Close', 'Cancel'],
+                title: 'Confirm Exit',
+                message: 'You have an active sale in progress. Are you sure you want to exit and lose this sale?'
+            });
+            if (choice === 0) {
+                // User chose to close anyway
+                canCloseApp = true;
+                mainWindow.close();
+            }
+        }
     });
 
     mainWindow.on('closed', () => {

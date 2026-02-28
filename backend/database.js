@@ -55,6 +55,20 @@ async function getDatabase() {
   }
 
   db.run('PRAGMA foreign_keys = ON');
+
+  // Perform integrity check
+  try {
+    const check = db.exec('PRAGMA integrity_check')[0];
+    if (check && check.values && check.values[0] && check.values[0][0] !== 'ok') {
+      console.error('DATABASE CORRUPTION DETECTED:', check.values[0][0]);
+      // In a more robust system, we would trigger an automatic restore here.
+    } else {
+      console.log('Database integrity check passed.');
+    }
+  } catch (err) {
+    console.error('Failed to run integrity check:', err);
+  }
+
   initializeDatabase();
   saveDb();
   startAutoSave();
@@ -62,11 +76,11 @@ async function getDatabase() {
 }
 
 // Wrapper helpers that mimic better-sqlite3 API for easier route usage
-function dbRun(sql, params = []) {
+function dbRun(sql, params = [], skipSave = false) {
   db.run(sql, params);
   const changes = db.getRowsModified(); // MUST capture before any other SQL
   const lastId = db.exec("SELECT last_insert_rowid()")[0]?.values[0]?.[0] || 0;
-  saveDb();
+  if (!skipSave) saveDb();
   return { lastInsertRowid: lastId, changes };
 }
 
@@ -162,8 +176,53 @@ function initializeDatabase() {
       email TEXT DEFAULT '',
       address TEXT DEFAULT '',
       company TEXT DEFAULT '',
+      ntn TEXT DEFAULT '',
+      balance REAL DEFAULT 0,
       notes TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  // Purchases table
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT NOT NULL UNIQUE,
+      supplier_id INTEGER NOT NULL,
+      total_amount REAL DEFAULT 0,
+      paid_amount REAL DEFAULT 0,
+      status TEXT DEFAULT 'unpaid',
+      payment_method TEXT DEFAULT 'credit',
+      date TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+    )
+  `);
+
+  // Purchase Items table
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS purchase_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_id INTEGER NOT NULL,
+      product_id INTEGER NOT NULL,
+      quantity INTEGER DEFAULT 1,
+      purchase_price REAL DEFAULT 0,
+      batch TEXT DEFAULT '',
+      expiry TEXT,
+      FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
+    )
+  `);
+
+  // Supplier Payments table
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS supplier_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supplier_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      method TEXT DEFAULT 'cash',
+      reference TEXT DEFAULT '',
+      date TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
     )
   `);
 
@@ -247,6 +306,13 @@ function initializeDatabase() {
   if (!walkInExists) {
     dbRun('INSERT INTO customers (name, type) VALUES (?, ?)', ['Walk-in Customer', 'walk-in']);
   }
+
+  // --- Indexes for High Performance ---
+  dbExec(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)`);
+  dbExec(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)`);
+  dbExec(`CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)`);
+  dbExec(`CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id)`);
+  dbExec(`CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name)`);
 }
 
 function closeDatabase() {
