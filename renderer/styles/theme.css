@@ -1,0 +1,19 @@
+/* ============================================
+   EPOS Pharma — CSS Variables Only
+   All layout, utilities, and components are
+   handled by Tailwind CSS. This file provides
+   CSS custom properties for any edge-case usage.
+   ============================================ */
+
+:root {
+  /* Primary Palette */
+  --primary: #0aa86b;
+  --primary-light: #effef7;
+  --primary-dark: #0c8457;
+
+  /* Accent */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+}
