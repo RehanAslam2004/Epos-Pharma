@@ -12,6 +12,8 @@ import Reports from './components/Reports';
 import Settings from './components/Settings';
 import Toast from './components/Toast';
 
+import SetupWizard from './components/SetupWizard';
+
 // ── Context ──
 export const AppContext = createContext();
 
@@ -26,6 +28,7 @@ const sidebarItems = [
 ];
 
 function App() {
+    const [needsSetup, setNeedsSetup] = useState(false);
     const [authed, setAuthed] = useState(false);
     const [checking, setChecking] = useState(true);
     const [user, setCurrentUser] = useState(null);
@@ -41,6 +44,15 @@ function App() {
     useEffect(() => { checkSession(); }, []);
 
     async function checkSession() {
+        try {
+            const st = await api.getSetupStatus();
+            if (st.needsSetup) {
+                setNeedsSetup(true);
+                setChecking(false);
+                return;
+            }
+        } catch (e) { console.error('Setup check failed', e); }
+
         const token = getToken();
         if (!token) { setChecking(false); return; }
         try {
@@ -84,6 +96,10 @@ function App() {
             <div className="w-8 h-8 border-[3px] border-gray-200 dark:border-gray-700 border-t-sea-600 rounded-full animate-spin" />
         </div>
     );
+
+    if (needsSetup) {
+        return <SetupWizard onComplete={() => { setNeedsSetup(false); checkSession(); }} />;
+    }
 
     if (!authed) return <Login onLogin={handleLogin} />;
 

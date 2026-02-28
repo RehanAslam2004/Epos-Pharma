@@ -33,6 +33,11 @@ export default function Inventory() {
     function openAdd() { setEditProduct(null); setForm({ name: '', brand: '', batch: '', expiry: '', purchase_price: '', selling_price: '', stock: '', barcode: '', supplier_id: '', category: 'General', description: '' }); setFormError(''); setShowModal(true); }
     function openEdit(p) { setEditProduct(p); setForm({ name: p.name, brand: p.brand || '', batch: p.batch || '', expiry: p.expiry ? p.expiry.split('T')[0] : '', purchase_price: p.purchase_price || '', selling_price: p.selling_price || '', stock: p.stock || '', barcode: p.barcode || '', supplier_id: p.supplier_id || '', category: p.category || 'General', description: p.description || '' }); setFormError(''); setShowModal(true); }
 
+    function generateBarcode() {
+        const num = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+        setForm({ ...form, barcode: num });
+    }
+
     async function handleSave(e) {
         e.preventDefault();
         if (!form.name) { setFormError('Product name is required'); return; }
@@ -161,7 +166,13 @@ export default function Inventory() {
                                     <div><label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Stock</label><input className={inputCls} type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Barcode</label><input className={inputCls} value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Auto-generated" /></div>
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Barcode</label>
+                                        <div className="flex gap-2">
+                                            <input className={inputCls} value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Scan or Generate" />
+                                            <button type="button" onClick={generateBarcode} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors whitespace-nowrap" title="Auto Generate">⚡ Auto</button>
+                                        </div>
+                                    </div>
                                     <div><label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Supplier</label><select className={inputCls} value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}><option value="">None</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                                 </div>
                             </div>

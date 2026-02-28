@@ -240,26 +240,7 @@ function initializeDatabase() {
     )
   `);
 
-  // Seed default admin user
-  const adminExists = dbGet('SELECT id FROM users WHERE username = ?', ['admin']);
-  if (!adminExists) {
-    const hash = bcrypt.hashSync('admin123', 10);
-    dbRun('INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)', ['admin', hash, 'Administrator', 'admin']);
-  }
-
-  // Seed default settings
-  const settingsExist = dbGet('SELECT id FROM settings LIMIT 1');
-  if (!settingsExist) {
-    dbRun('INSERT INTO settings (pharmacy_name) VALUES (?)', ['EPOS Pharma']);
-  }
-
-  // Seed trial record
-  const trialExists = dbGet('SELECT id FROM trial_license LIMIT 1');
-  if (!trialExists) {
-    const now = new Date();
-    const trialEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
-    dbRun('INSERT INTO trial_license (trial_start, trial_end) VALUES (?, ?)', [now.toISOString(), trialEnd.toISOString()]);
-  }
+  // Auto-seeding of admin, settings, and trial removed for Setup Wizard.
 
   // Seed walk-in customer
   const walkInExists = dbGet("SELECT id FROM customers WHERE name = ?", ['Walk-in Customer']);

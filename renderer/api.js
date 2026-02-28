@@ -102,6 +102,11 @@ export const api = {
 
     // Notifications
     getNotifications: () => request('/notifications').catch(() => []),
+
+    // Setup Wizard
+    getSetupStatus: () => request('/setup/status'),
+    getSetupMachineId: () => request('/setup/machine-id'),
+    completeSetup: (data) => request('/setup/complete', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export { getToken, setToken, removeToken, setUser, getUser };

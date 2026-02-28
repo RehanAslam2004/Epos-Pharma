@@ -61,11 +61,32 @@ export default function Settings() {
             </div></div>}
 
             {/* License */}
-            {tab === 'license' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">License & Trial</h3></div><div className="p-5">
-                {trial?.is_licensed ? <div className="flex items-center gap-2 bg-sea-50 dark:bg-sea-900/20 border border-sea-200 dark:border-sea-800 text-sea-700 dark:text-sea-400 px-4 py-3 rounded-xl text-sm font-medium">✅ Licensed — Key: <code className="font-mono">{trial.license_key}</code></div> : <>
-                    <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium mb-5 ${trial?.trial_expired ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700'}`}>{trial?.trial_expired ? '⚠️ Trial expired' : `⏳ ${trial?.days_remaining || 0} days remaining`}</div>
-                    <div className="max-w-sm"><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">License Key</label><input className={inputCls + " font-mono tracking-widest"} value={licenseKey} onChange={e => setLicenseKey(e.target.value.toUpperCase())} placeholder="EPOS-XXXX-XXXX-XXXX" /></div>
-                    <button onClick={activateLicense} disabled={saving} className="px-5 py-2 bg-gradient-to-r from-sea-500 to-sea-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60 mt-3">{saving ? 'Activating...' : 'Activate License'}</button>
+            {tab === 'license' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">License & Activation</h3></div><div className="p-6">
+
+                <div className="mb-6 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 relative">
+                    <p className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-2">Machine ID</p>
+                    <div className="text-lg font-mono text-sea-600 dark:text-sea-400 font-extrabold tracking-widest bg-white dark:bg-gray-800 py-2.5 px-4 rounded-lg border border-gray-100 dark:border-gray-700 mb-3 select-all truncate">
+                        {trial?.machine_id || 'LOADING...'}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => { navigator.clipboard.writeText(trial?.machine_id || ''); addToast('Machine ID copied successfully', 'success'); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy ID
+                        </button>
+                        <button onClick={() => {
+                            const email = 'rehan2004aslam@gmail.com';
+                            const subject = encodeURIComponent(`EPOS Pharma License Request`);
+                            const body = encodeURIComponent(`Hello,\n\nPlease generate a license key for my installation.\n\nMachine ID: ${trial?.machine_id || ''}\n\nThank you.`);
+                            window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                        }} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 dark:bg-gray-700 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors shadow-sm">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> Email ID
+                        </button>
+                    </div>
+                </div>
+
+                {trial?.is_licensed ? <div className="flex flex-col gap-2 bg-sea-50 dark:bg-sea-900/20 border border-sea-200 dark:border-sea-800 text-sea-700 dark:text-sea-400 p-4 rounded-xl text-sm font-medium"><div className="flex items-center gap-2">✅ <span className="font-bold text-base">Activated — Lifetime License</span></div><div className="text-xs opacity-80 mt-1">License Key: <code className="font-mono">{trial.license_key}</code></div><div className="text-[11px] opacity-60">Activated on: {new Date(trial.activation_date).toLocaleString()}</div></div> : <>
+                    <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium mb-5 ${trial?.trial_expired ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700'}`}>{trial?.trial_expired ? '⚠️ Trial expired. Activation required.' : `⏳ Trial Active — ${trial?.days_remaining || 0} days remaining`}</div>
+                    <div className="max-w-md"><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Enter License Key</label><input className={inputCls + " font-mono tracking-widest"} value={licenseKey} onChange={e => setLicenseKey(e.target.value.toUpperCase())} placeholder="XJ29-XXXX-XXXX-XXXX" maxLength={19} /></div>
+                    <button onClick={activateLicense} disabled={saving} className="px-6 py-2.5 bg-gradient-to-r from-sea-500 to-sea-700 hover:from-sea-600 hover:to-sea-800 text-white rounded-lg text-sm font-semibold disabled:opacity-60 mt-3 shadow-md shadow-sea-500/20 transition-all">{saving ? 'Validating...' : 'Activate License'}</button>
                 </>}
             </div></div>}
 

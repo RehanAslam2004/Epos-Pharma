@@ -8,6 +8,7 @@ const customerRoutes = require('./routes/customers');
 const supplierRoutes = require('./routes/suppliers');
 const reportRoutes = require('./routes/reports');
 const settingsRoutes = require('./routes/settings');
+const setupRoutes = require('./routes/setup');
 const { authMiddleware } = require('./middlewares/auth');
 
 function createApp() {
@@ -18,6 +19,7 @@ function createApp() {
 
     // Public routes
     app.use('/api/auth', authRoutes);
+    app.use('/api/setup', setupRoutes);
 
     // Protected routes
     app.use('/api/products', authMiddleware, productRoutes);

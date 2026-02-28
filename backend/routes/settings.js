@@ -28,17 +28,21 @@ router.put('/', (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+const { getMachineId, validateLicenseKey } = require('../../utils/license');
+
 // GET /api/settings/trial
 router.get('/trial', (req, res) => {
     try {
         const trial = dbGet('SELECT * FROM trial_license LIMIT 1');
-        if (!trial) return res.json({ is_licensed: false, days_remaining: 0 });
-        if (trial.is_licensed) return res.json({ is_licensed: true, license_key: trial.license_key, activation_date: trial.activation_date });
+        const machine_id = trial?.machine_id || getMachineId(); // Fallback if missing
+
+        if (!trial) return res.json({ is_licensed: false, days_remaining: 0, machine_id });
+        if (trial.is_licensed) return res.json({ is_licensed: true, license_key: trial.license_key, activation_date: trial.activation_date, machine_id });
 
         const now = new Date();
         const end = new Date(trial.trial_end);
         const daysRemaining = Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
-        res.json({ is_licensed: false, trial_start: trial.trial_start, trial_end: trial.trial_end, days_remaining: daysRemaining, trial_expired: daysRemaining <= 0 });
+        res.json({ is_licensed: false, trial_start: trial.trial_start, trial_end: trial.trial_end, days_remaining: daysRemaining, trial_expired: daysRemaining <= 0, machine_id });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -47,10 +51,14 @@ router.post('/license', (req, res) => {
     try {
         const { license_key } = req.body;
         if (!license_key) return res.status(400).json({ error: 'License key is required' });
-        const pattern = /^EPOS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-        if (!pattern.test(license_key)) return res.status(400).json({ error: 'Invalid license key format. Expected: EPOS-XXXX-XXXX-XXXX' });
 
-        dbRun(`UPDATE trial_license SET license_key = ?, activation_date = datetime('now'), is_licensed = 1 WHERE id = 1`, [license_key]);
+        const trial = dbGet('SELECT * FROM trial_license LIMIT 1');
+        if (!trial) return res.status(500).json({ error: 'System not initialized properly' });
+
+        const isValid = validateLicenseKey(trial.machine_id, license_key);
+        if (!isValid) return res.status(400).json({ error: 'Invalid license key for this machine' });
+
+        dbRun(`UPDATE trial_license SET license_key = ?, activation_date = datetime('now'), is_licensed = 1 WHERE id = ?`, [license_key, trial.id]);
         res.json({ message: 'License activated successfully', is_licensed: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
