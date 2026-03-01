@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../api';
 import { AppContext } from '../App';
 
 export default function Inventory() {
+    const location = useLocation();
+    const defaultFilter = location.state?.defaultFilter || 'all';
+
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState(defaultFilter);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editProduct, setEditProduct] = useState(null);
@@ -23,7 +27,9 @@ export default function Inventory() {
             if (filter === 'low_stock') p += 'low_stock=true&';
             if (filter === 'expiring') p += 'expiring=true&';
             setProducts(await api.getProducts(p));
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            addToast(e.message || 'Failed to load inventory', 'error');
+        }
         setLoading(false);
     }, [search, filter]);
 

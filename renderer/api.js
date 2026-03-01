@@ -90,6 +90,12 @@ export const api = {
     getPurchase: (id) => request(`/purchases/${id}`),
     createPurchase: (payload) => request('/purchases', { method: 'POST', body: JSON.stringify(payload) }),
 
+    // Expenses (Phase 5)
+    getExpenses: (params = '') => request(`/expenses?${params}`),
+    getExpenseSummary: () => request('/expenses/summary'),
+    createExpense: (payload) => request('/expenses', { method: 'POST', body: JSON.stringify(payload) }),
+    deleteExpense: (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
+
     // Reports
     getDashboard: () => request('/reports/dashboard'),
     getSalesReport: (params = '') => request(`/reports/sales?${params}`),

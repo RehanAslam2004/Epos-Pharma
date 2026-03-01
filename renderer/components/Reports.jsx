@@ -1,10 +1,37 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { api } from '../api';
 import { AppContext } from '../App';
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart3, Package, Users as UsersIcon, Factory, CreditCard } from 'lucide-react';
 
-const COLORS = ['#0aa86b', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+const COLORS = ['#6366f1', '#14b8a6', '#f43f5e', '#f59e0b', '#8b5cf6'];
 const tooltipStyle = { background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' };
+
+const StatCard = ({ title, value, subtitle, data, dataKey, color }) => {
+    let plotData = data;
+    if (data?.length === 1) {
+        plotData = [{ ...data[0], day: data[0].day + ' ' }, data[0]];
+    }
+
+    return (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 flex justify-between items-center transition-all hover:shadow-md hover:border-gray-300 dark:border-gray-600">
+            <div>
+                <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{title}</h3>
+                <div className="text-2xl font-extrabold" style={{ color: color }}>{value}</div>
+                <div className="text-[11px] text-gray-400 mt-1 font-medium">{subtitle}</div>
+            </div>
+            {plotData && plotData.length > 0 && (
+                <div className="w-[80px] h-[45px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={plotData}>
+                            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={true} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function Reports() {
     const [tab, setTab] = useState('sales');
@@ -40,8 +67,9 @@ export default function Reports() {
         addToast('CSV exported', 'success');
     }
 
-    const tabs = [{ key: 'sales', icon: '📊', label: 'Sales' }, { key: 'inventory', icon: '📦', label: 'Inventory' }, { key: 'customers', icon: '👥', label: 'Customers' }, { key: 'suppliers', icon: '🏭', label: 'Suppliers' }, { key: 'payments', icon: '💳', label: 'Payments' }];
+    const tabs = [{ key: 'sales', icon: <BarChart3 size={18} />, label: 'Sales' }, { key: 'inventory', icon: <Package size={18} />, label: 'Inventory' }, { key: 'customers', icon: <UsersIcon size={18} />, label: 'Customers' }, { key: 'suppliers', icon: <Factory size={18} />, label: 'Suppliers' }, { key: 'payments', icon: <CreditCard size={18} />, label: 'Payments' }];
     const inputCls = "px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sea-500/30 focus:border-sea-500";
+
 
     return (
         <div className="p-6 animate-fade-up">
@@ -64,18 +92,67 @@ export default function Reports() {
 
             {loading ? <div className="flex items-center justify-center h-[40vh]"><div className="w-7 h-7 border-[3px] border-gray-200 dark:border-gray-700 border-t-sea-600 rounded-full animate-spin" /></div> : <div className="animate-fade-up">
 
-                {/* Sales Tab */}
+                {/* Sales Tab - Image 1 Aesthetics */}
                 {tab === 'sales' && salesData && <>
-                    <div className="grid grid-cols-4 gap-4 mb-5">
-                        {[{ v: salesData.summary?.total_sales || 0, l: 'Total Sales', c: 'from-sea-500 to-sea-700', i: '🛒' },
-                        { v: `PKR ${(salesData.summary?.total_revenue || 0).toLocaleString()}`, l: 'Revenue', c: 'from-blue-500 to-blue-600', i: '💰' },
-                        { v: `PKR ${Math.round(salesData.summary?.avg_sale || 0).toLocaleString()}`, l: 'Avg Sale', c: 'from-amber-500 to-amber-600', i: '📊' },
-                        { v: `PKR ${(salesData.summary?.total_discount || 0).toLocaleString()}`, l: 'Discounts', c: 'from-red-500 to-red-600', i: '🏷️' },
-                        ].map((s, i) => <div key={i} className={`relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br ${s.c}`}><div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" /><div className="text-2xl mb-1 opacity-80">{s.i}</div><div className="text-xl font-extrabold">{s.v}</div><div className="text-xs opacity-80 mt-0.5">{s.l}</div></div>)}
+                    {/* Top Stats */}
+                    <div className="grid grid-cols-4 gap-4 mb-6">
+                        <StatCard title="TOTAL DEALS" value={salesData.summary?.total_sales || 0} subtitle="Transactions" data={salesData.dailyData} dataKey="sales" color="#10b981" />
+                        <StatCard title="TOTAL VALUE" value={`PKR ${(salesData.summary?.total_revenue || 0).toLocaleString()}`} subtitle="Gross Revenue" data={salesData.dailyData} dataKey="revenue" color="#6366f1" />
+                        <StatCard title="TOTAL DISCOUNT" value={`PKR ${(salesData.summary?.total_discount || 0).toLocaleString()}`} subtitle="Given Discounts" data={salesData.dailyData} dataKey="sales" color="#f59e0b" />
+                        <StatCard title="AVG DEAL SIZE" value={`PKR ${Math.round(salesData.summary?.avg_sale || 0).toLocaleString()}`} subtitle="Per Transaction" data={salesData.dailyData} dataKey="revenue" color="#14b8a6" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mb-5">
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex justify-between"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Revenue Trend</h3><button onClick={() => exportCSV(['Day', 'Sales', 'Revenue'], (salesData.dailyData || []).map(d => [d.day, d.sales, d.revenue]), 'sales_trend')} className="text-[10px] text-gray-400 hover:text-sea-600 transition-colors">📥 CSV</button></div><div className="p-4">{salesData.dailyData?.length > 0 ? <ResponsiveContainer width="100%" height={220}><AreaChart data={salesData.dailyData}><defs><linearGradient id="sGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0aa86b" stopOpacity={0.2} /><stop offset="100%" stopColor="#0aa86b" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" /><XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} tickFormatter={v => v.slice(5)} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={tooltipStyle} /><Area type="monotone" dataKey="revenue" stroke="#0aa86b" strokeWidth={2.5} fill="url(#sGrad)" /></AreaChart></ResponsiveContainer> : <div className="flex items-center justify-center h-[220px] text-gray-300"><span className="text-sm">No data</span></div>}</div></div>
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Top Products</h3></div><div className="p-4">{salesData.topProducts?.length > 0 ? <ResponsiveContainer width="100%" height={220}><BarChart data={salesData.topProducts}><CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" /><XAxis dataKey="product_name" tick={{ fontSize: 9, fill: '#9ca3af' }} interval={0} angle={-15} textAnchor="end" height={55} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={tooltipStyle} /><Bar dataKey="total_revenue" fill="#0aa86b" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer> : <div className="flex items-center justify-center h-[220px] text-gray-300"><span className="text-sm">No data</span></div>}</div></div>
+
+                    {/* Main Area Chart */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 mb-6 shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900 dark:text-white">Revenue Statistics</h3>
+                                <p className="text-[11px] font-medium text-gray-400 mt-1">Daily trend analysis</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span><span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Revenue</span></div>
+                                <button onClick={() => exportCSV(['Day', 'Sales', 'Revenue'], (salesData.dailyData || []).map(d => [d.day, d.sales, d.revenue]), 'sales_trend')} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Export
+                                </button>
+                            </div>
+                        </div>
+
+                        {salesData.dailyData?.length > 0 ? (
+                            <div className="h-[250px] w-full mt-2">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={salesData.dailyData?.length === 1 ? [{ ...salesData.dailyData[0], day: salesData.dailyData[0].day + ' ' }, salesData.dailyData[0]] : salesData.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="mainAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.6} />
+                                        <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }} axisLine={{ stroke: '#e5e7eb' }} tickLine={false} tickMargin={12} />
+                                        <YAxis tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={v => (v >= 1000 ? (v / 1000) + 'k' : v)} tickMargin={8} />
+                                        <Tooltip contentStyle={{ ...tooltipStyle, border: 'none', borderRadius: '12px' }} cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                                        <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={3} fill="url(#mainAreaGrad)" activeDot={{ r: 6, strokeWidth: 0 }} isAnimationActive={false} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : <div className="flex items-center justify-center h-[250px] text-gray-400 font-medium text-sm">No data</div>}
+                    </div>
+
+                    {/* Secondary Data Grid */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm">
+                        <div className="mb-4"><h3 className="text-base font-bold text-gray-900 dark:text-white">Top Performing Products</h3></div>
+                        {salesData.topProducts?.length > 0 ? (
+                            <div className="h-[220px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={salesData.topProducts} margin={{ top: 0, right: 10, left: -20, bottom: 0 }} layout="vertical">
+                                        <XAxis type="number" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                        <YAxis dataKey="product_name" type="category" tick={{ fontSize: 10, fill: '#4b5563', fontWeight: 500 }} axisLine={false} tickLine={false} width={100} />
+                                        <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px' }} cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }} />
+                                        <Bar dataKey="total_revenue" name="Revenue generated" fill="#14b8a6" radius={[0, 4, 4, 0]} barSize={16} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : <div className="flex items-center justify-center h-[220px] text-gray-400 font-medium text-sm">No data</div>}
                     </div>
                 </>}
 

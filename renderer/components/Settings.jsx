@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { api } from '../api';
 import { AppContext } from '../App';
+import { Settings as SettingsIcon, Palette, Users as UsersIcon, Key, Database, Info } from 'lucide-react';
 
 export default function Settings() {
     const [tab, setTab] = useState('general');
@@ -35,7 +36,7 @@ export default function Settings() {
 
     if (loading) return <div className="flex items-center justify-center h-[60vh]"><div className="w-7 h-7 border-[3px] border-gray-200 dark:border-gray-700 border-t-sea-600 rounded-full animate-spin" /></div>;
 
-    const tabItems = [{ key: 'general', icon: '🏥', label: 'General' }, { key: 'appearance', icon: '🎨', label: 'Appearance' }, { key: 'users', icon: '👥', label: 'Users' }, { key: 'license', icon: '🔑', label: 'License' }, { key: 'backup', icon: '💾', label: 'Backup' }, { key: 'about', icon: 'ℹ️', label: 'About' }];
+    const tabItems = [{ key: 'general', icon: <SettingsIcon size={18} />, label: 'General' }, { key: 'appearance', icon: <Palette size={18} />, label: 'Appearance' }, { key: 'users', icon: <UsersIcon size={18} />, label: 'Users' }, { key: 'license', icon: <Key size={18} />, label: 'License' }, { key: 'backup', icon: <Database size={18} />, label: 'Backup' }, { key: 'about', icon: <Info size={18} />, label: 'About' }];
     const inputCls = "w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sea-500/30 focus:border-sea-500 transition-all";
 
     return (
@@ -56,7 +57,7 @@ export default function Settings() {
             {tab === 'appearance' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Appearance</h3></div><div className="p-5">
                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                     <div><div className="text-sm font-semibold text-gray-800 dark:text-gray-200">Dark Mode</div><div className="text-xs text-gray-400 mt-0.5">Switch between light and dark theme</div></div>
-                    <button onClick={() => setDark(!dark)} className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${dark ? 'bg-sea-600' : 'bg-gray-300'}`}><span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${dark ? 'translate-x-6' : 'translate-x-0.5'}`} /></button>
+                    <button onClick={() => setDark(!dark)} className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${dark ? 'bg-sea-600' : 'bg-gray-300'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${dark ? 'translate-x-6' : 'translate-x-0'}`} /></button>
                 </div>
             </div></div>}
 

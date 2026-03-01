@@ -17,7 +17,7 @@ router.get('/', (req, res) => {
         }
         if (supplier_id) { query += ` AND p.supplier_id = ?`; params.push(parseInt(supplier_id)); }
         if (low_stock === 'true') query += ` AND p.stock <= 10`;
-        if (expiring === 'true') query += ` AND p.expiry IS NOT NULL AND p.expiry <= date('now', '+30 days')`;
+        if (expiring === 'true') query += ` AND p.expiry IS NOT NULL AND p.expiry <= date('now', '+60 days')`;
         query += ` ORDER BY p.name ASC`;
 
         const products = dbAll(query, params);

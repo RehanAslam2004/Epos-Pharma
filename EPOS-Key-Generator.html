@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPOS Pharma - Master Key Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+
+    <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full border border-gray-200">
+        <div class="flex items-center gap-4 mb-8 border-b pb-6">
+            <div
+                class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg font-bold text-2xl">
+                E
+            </div>
+            <div>
+                <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Master Keygen</h1>
+                <p class="text-sm font-medium text-gray-400">Offline License Generator</p>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Customer's Machine
+                    ID</label>
+                <input type="text" id="machineId" placeholder="e.g. EPOS-A1B2-C3D4-E5F6-G7H8"
+                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all uppercase placeholder-gray-400">
+                <p class="text-xs text-gray-400 mt-2 font-medium">Have your customer go to Settings -> License Status to
+                    find their unique block hardware ID.</p>
+            </div>
+
+            <button onclick="generateKey()"
+                class="w-full py-3.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 relative overflow-hidden group">
+                <span class="relative z-10">Generate Activation Key</span>
+            </button>
+
+            <div id="resultBlock" class="hidden mt-6 pt-6 border-t border-gray-100">
+                <label class="block text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Valid License
+                    Key</label>
+                <div class="flex">
+                    <input type="text" id="licenseKey" readonly
+                        class="w-full px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-l-xl text-emerald-900 font-mono text-lg font-bold outline-none">
+                    <button onclick="copyKey()"
+                        class="px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-r-xl transition-colors">
+                        Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function generateKey() {
+            const machineId = document.getElementById('machineId').value.trim();
+            const btn = document.querySelector('button');
+            const resultBlock = document.getElementById('resultBlock');
+            const output = document.getElementById('licenseKey');
+
+            if (!machineId) {
+                alert("Please enter the Customer's Machine ID.");
+                return;
+            }
+
+            try {
+                // EPOS Pharma Master Secret (Matches exactly what we wrote in backend/utils/license.js)
+                const secret = 'EPOS_PHARMA_OFFLINE_SECRET_2026';
+                const msgUint8 = new TextEncoder().encode(machineId + secret);
+
+                // Emulate internal crypto.createHash('sha256') natively in the browser
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+
+                // Inject the exact key formatting format required by the App settings
+                const finalKey = `XJ29-${hashHex.substring(0, 4)}-${hashHex.substring(4, 8)}-${hashHex.substring(8, 12)}`;
+
+                output.value = finalKey;
+                resultBlock.classList.remove('hidden');
+
+            } catch (err) {
+                alert("Error generating key string. Make sure you are using a modern browser.");
+            }
+        }
+
+        function copyKey() {
+            const copyText = document.getElementById("licenseKey");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+            alert("License Key Copied!");
+        }
+    </script>
+</body>
+
+</html>

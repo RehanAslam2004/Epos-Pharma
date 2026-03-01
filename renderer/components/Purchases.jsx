@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { AppContext } from '../App';
 
-export default function Purchases() {
+export default function Purchases({ isMerged }) {
     const [purchases, setPurchases] = useState([]);
     const [loading, setLoading] = useState(true);
     const { addToast } = useContext(AppContext);
@@ -31,12 +31,14 @@ export default function Purchases() {
     const totalUnpaid = purchases.reduce((sum, p) => sum + (p.total_amount - p.paid_amount), 0);
 
     return (
-        <div className="p-6 animate-fade-up">
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Purchase Invoices</h1>
-                    <p className="text-sm text-gray-400 mt-0.5">Manage your incoming stock and supplier invoices.</p>
-                </div>
+        <div className={`animate-fade-up ${isMerged ? 'p-6' : 'p-6'}`}>
+            <div className={`flex items-start mb-6 ${isMerged ? 'justify-end' : 'justify-between'}`}>
+                {!isMerged && (
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Purchase Invoices</h1>
+                        <p className="text-sm text-gray-400 mt-0.5">Manage your incoming stock and supplier invoices.</p>
+                    </div>
+                )}
                 <div className="flex flex-col items-end gap-3">
                     <button onClick={() => navigate('/purchases/new')} className="px-4 py-2 bg-sea-600 hover:bg-sea-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-sea-500/20 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>

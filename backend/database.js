@@ -198,13 +198,14 @@ function initializeDatabase() {
     )
   `);
 
-  // Purchase Items table
+  // Purchase Items table (Updated for FIFO)
   dbExec(`
     CREATE TABLE IF NOT EXISTS purchase_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       purchase_id INTEGER NOT NULL,
       product_id INTEGER NOT NULL,
       quantity INTEGER DEFAULT 1,
+      remaining_quantity INTEGER DEFAULT 1,
       purchase_price REAL DEFAULT 0,
       batch TEXT DEFAULT '',
       expiry TEXT,
@@ -259,6 +260,30 @@ function initializeDatabase() {
     )
   `);
 
+  // Sale item batches (linking table for exact FIFO COGS deductions)
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS sale_item_batches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_item_id INTEGER NOT NULL,
+      purchase_item_id INTEGER NOT NULL,
+      quantity INTEGER NOT NULL,
+      FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (purchase_item_id) REFERENCES purchase_items(id) ON DELETE RESTRICT
+    )
+  `);
+
+  // Expenses table
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT DEFAULT (datetime('now')),
+      category TEXT NOT NULL,
+      amount REAL NOT NULL,
+      reference TEXT DEFAULT '',
+      notes TEXT DEFAULT ''
+    )
+  `);
+
   // Trial & License table
   dbExec(`
     CREATE TABLE IF NOT EXISTS trial_license (
@@ -305,6 +330,20 @@ function initializeDatabase() {
   const walkInExists = dbGet("SELECT id FROM customers WHERE name = ?", ['Walk-in Customer']);
   if (!walkInExists) {
     dbRun('INSERT INTO customers (name, type) VALUES (?, ?)', ['Walk-in Customer', 'walk-in']);
+  }
+
+  // --- Backward Compatibility Schema Migrations ---
+  // Ensure 'remaining_quantity' tracking exists on legacy purchase_items for FIFO execution
+  try {
+    const pInfo = dbAll("PRAGMA table_info(purchase_items)");
+    if (!pInfo.some(c => c.name === 'remaining_quantity')) {
+      dbExec(`ALTER TABLE purchase_items ADD COLUMN remaining_quantity INTEGER DEFAULT 0`);
+      // For historical data, assume everything bought in the past has all of its quantity remaining 
+      // relative to its batch (unless we re-compute the entire world which is dangerous on live Prod).
+      dbExec(`UPDATE purchase_items SET remaining_quantity = quantity`);
+    }
+  } catch (e) {
+    console.error("Migration error adding remaining_quantity:", e);
   }
 
   // --- Indexes for High Performance ---

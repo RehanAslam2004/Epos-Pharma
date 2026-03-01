@@ -70,7 +70,9 @@ router.get('/dashboard', (req, res) => {
     try {
         const todaySales = dbGet(`SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM sales WHERE date(date) = date('now')`);
         const monthRevenue = dbGet(`SELECT COALESCE(SUM(total), 0) as revenue FROM sales WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')`);
+        const monthExpenses = dbGet(`SELECT COALESCE(SUM(amount), 0) as expenses FROM expenses WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')`);
         const lowStockCount = dbGet('SELECT COUNT(*) as count FROM products WHERE stock <= 10');
+        const expiringSoonCount = dbGet("SELECT COUNT(*) as count FROM products WHERE expiry IS NOT NULL AND expiry BETWEEN date('now') AND date('now', '+60 days')");
         const newCustomers = dbGet("SELECT COUNT(*) as count FROM customers WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')");
         const totalProducts = dbGet('SELECT COUNT(*) as count FROM products');
         const totalCustomers = dbGet('SELECT COUNT(*) as count FROM customers');
@@ -88,7 +90,8 @@ router.get('/dashboard', (req, res) => {
 
         res.json({
             todaySales: todaySales.count, todayRevenue: todaySales.revenue,
-            monthRevenue: monthRevenue.revenue, lowStockCount: lowStockCount.count,
+            monthRevenue: monthRevenue.revenue, monthExpenses: monthExpenses.expenses,
+            lowStockCount: lowStockCount.count, expiringSoonCount: expiringSoonCount.count,
             newCustomers: newCustomers.count, totalProducts: totalProducts.count,
             totalCustomers: totalCustomers.count, weeklySales, topProducts, recentSales,
             daysSinceBackup,
