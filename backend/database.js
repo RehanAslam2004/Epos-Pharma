@@ -162,6 +162,7 @@ function initializeDatabase() {
       email TEXT DEFAULT '',
       address TEXT DEFAULT '',
       type TEXT DEFAULT 'walk-in',
+      balance REAL DEFAULT 0,
       notes TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     )
@@ -236,12 +237,26 @@ function initializeDatabase() {
       discount REAL DEFAULT 0,
       tax REAL DEFAULT 0,
       total REAL DEFAULT 0,
+      paid_amount REAL DEFAULT 0,
       payment_method TEXT DEFAULT 'cash',
       payment_details TEXT DEFAULT '',
       status TEXT DEFAULT 'completed',
       notes TEXT DEFAULT '',
       date TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Customer Payments table
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS customer_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      method TEXT DEFAULT 'cash',
+      reference TEXT DEFAULT '',
+      date TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
     )
   `);
 
@@ -345,6 +360,24 @@ function initializeDatabase() {
   } catch (e) {
     console.error("Migration error adding remaining_quantity:", e);
   }
+
+  // Ensure 'balance' tracking on customers
+  try {
+    const pInfo = dbAll("PRAGMA table_info(customers)");
+    if (!pInfo.some(c => c.name === 'balance')) {
+      dbExec(`ALTER TABLE customers ADD COLUMN balance REAL DEFAULT 0`);
+    }
+  } catch (e) { console.error("Migration error adding balance to customers:", e); }
+
+  // Ensure 'paid_amount' tracking on sales
+  try {
+    const pInfo = dbAll("PRAGMA table_info(sales)");
+    if (!pInfo.some(c => c.name === 'paid_amount')) {
+      dbExec(`ALTER TABLE sales ADD COLUMN paid_amount REAL DEFAULT 0`);
+      // Update historical sales to be fully paid to not mess up balances
+      dbExec(`UPDATE sales SET paid_amount = total, status = 'paid'`);
+    }
+  } catch (e) { console.error("Migration error adding paid_amount to sales:", e); }
 
   // --- Indexes for High Performance ---
   dbExec(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)`);

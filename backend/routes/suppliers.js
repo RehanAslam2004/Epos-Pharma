@@ -105,19 +105,55 @@ router.post('/:id/payment', (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const { amount, method, reference, date } = req.body;
+        const paymentAmount = parseFloat(amount);
 
-        if (!amount || amount <= 0) return res.status(400).json({ error: 'Valid payment amount required' });
+        if (!paymentAmount || paymentAmount <= 0) return res.status(400).json({ error: 'Valid payment amount required' });
 
         dbRun('BEGIN TRANSACTION');
 
         const insert = dbRun(`
             INSERT INTO supplier_payments (supplier_id, amount, method, reference, date) 
             VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))
-        `, [id, amount, method || 'cash', reference || 'Manual Payment', date]);
+        `, [id, paymentAmount, method || 'cash', reference || 'Manual Payment', date], true);
+
+        // FIFO Payment Allocation
+        let remainingPayment = paymentAmount;
+
+        // Fetch unpaid purchases ordered by date ASC (FIFO)
+        const unpaidPurchases = dbAll(`
+            SELECT id, total_amount, paid_amount 
+            FROM purchases 
+            WHERE supplier_id = ? AND status != 'paid' 
+            ORDER BY date ASC, id ASC
+        `, [id]);
+
+        for (const purchase of unpaidPurchases) {
+            if (remainingPayment <= 0) break;
+
+            const amountNeeded = purchase.total_amount - purchase.paid_amount;
+            if (amountNeeded <= 0) continue;
+
+            const amountToApply = Math.min(amountNeeded, remainingPayment);
+
+            if (amountToApply > 0) {
+                const newPaidAmount = purchase.paid_amount + amountToApply;
+                const newStatus = newPaidAmount >= purchase.total_amount ? 'paid' : 'partially_paid';
+
+                dbRun(`
+                    UPDATE purchases 
+                    SET paid_amount = ?, status = ? 
+                    WHERE id = ?
+                `, [newPaidAmount, newStatus, purchase.id], true);
+
+                remainingPayment -= amountToApply;
+            }
+        }
 
         // Decrease the supplier's outstanding liability balance
-        dbRun(`UPDATE suppliers SET balance = balance - ? WHERE id = ?`, [amount, id]);
+        dbRun(`UPDATE suppliers SET balance = balance - ? WHERE id = ?`, [paymentAmount, id]);
 
+        const { saveDb } = require('../database');
+        saveDb();
         dbRun('COMMIT');
 
         const supplier = dbGet('SELECT * FROM suppliers WHERE id = ?', [id]);

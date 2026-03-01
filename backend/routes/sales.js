@@ -21,9 +21,13 @@ router.post('/', (req, res) => {
         transactionActive = true;
 
         // Create sale
+        const isCredit = payment_method === 'credit' || payment_method === 'unpaid';
+        const initialStatus = isCredit ? 'unpaid' : 'paid';
+        const paidAmount = isCredit ? 0 : total;
+
         const saleResult = dbRun(
-            `INSERT INTO sales (customer_id, subtotal, discount, tax, total, payment_method, payment_details, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [customer_id || null, subtotal, discountAmount, taxAmount, total, payment_method || 'cash', payment_details || '', notes || ''],
+            `INSERT INTO sales (customer_id, subtotal, discount, tax, total, paid_amount, payment_method, payment_details, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [customer_id || null, subtotal, discountAmount, taxAmount, total, paidAmount, payment_method || 'cash', payment_details || '', initialStatus, notes || ''],
             true // skipSave
         );
         const saleId = saleResult.lastInsertRowid;
@@ -69,6 +73,17 @@ router.post('/', (req, res) => {
                 transactionActive = false;
                 return res.status(400).json({ error: `Insufficient stock for product: ${item.product_name}` });
             }
+        }
+
+        // Log initial payment into ledger if cash/card was handed over and a customer is attached
+        if (!isCredit && customer_id && total > 0) {
+            dbRun(`
+                INSERT INTO customer_payments (customer_id, amount, method, reference, date) 
+                VALUES (?, ?, ?, ?, datetime('now'))
+            `, [customer_id, total, payment_method || 'cash', `Initial payment for Sale #${saleId}`], true);
+        } else if (isCredit && customer_id && total > 0) {
+            // Increase the customer's balance for credit sales
+            dbRun(`UPDATE customers SET balance = balance + ? WHERE id = ?`, [total, customer_id], true);
         }
 
         dbExec('COMMIT');
