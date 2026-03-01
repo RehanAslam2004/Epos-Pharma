@@ -87,6 +87,16 @@ async function createWindow() {
         mainWindow = null;
     });
 
+    // Security: Block DevTools and Right-Click in Production
+    if (!isDev) {
+        mainWindow.webContents.on('devtools-opened', () => {
+            mainWindow.webContents.closeDevTools();
+        });
+        mainWindow.webContents.on('context-menu', (e) => {
+            e.preventDefault();
+        });
+    }
+
     // Auto-updater (only in production)
     if (!isDev) {
         try {

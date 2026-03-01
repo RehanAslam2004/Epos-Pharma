@@ -81,7 +81,7 @@ export default function SetupWizard({ onComplete }) {
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform translate-x-10 -translate-y-10"></div>
                     <div className="flex justify-center mb-3">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl shadow-sea-500/20 mb-6 relative">
-                            <img src="/icon.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src="./icon.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight">Welcome to EPOS Pharma</h2>

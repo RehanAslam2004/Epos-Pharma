@@ -101,7 +101,7 @@ export default function Settings() {
                     </div>
                     <div className="p-8 flex flex-col items-center justify-center text-center">
                         <div className="w-20 h-20 mb-4 rounded-[1.25rem] overflow-hidden shadow-xl shadow-sea-500/20">
-                            <img src="/icon.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src="./icon.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">EPOS Pharma</h2>
                         <span className="text-sm font-medium text-sea-600 dark:text-sea-400 bg-sea-50 dark:bg-sea-900/20 px-3 py-1 rounded-full mt-2 mb-6">Version 1.1.0 (Market Ready)</span>

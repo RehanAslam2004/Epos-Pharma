@@ -117,7 +117,7 @@ function App() {
                         {/* Brand */}
                         <div className="px-5 pt-5 pb-3 flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-sea-500/20 flex-shrink-0">
-                                <img src="/icon.png" alt="Logo" className="w-full h-full object-cover" />
+                                <img src="./icon.png" alt="Logo" className="w-full h-full object-cover" />
                             </div>
                             <div>
                                 <div className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">EPOS Pharma</div>
@@ -176,7 +176,7 @@ function App() {
                     </aside>
 
                     {/* ──── Main Content Area ──── */}
-                    <main className="flex-1 relative overflow-hidden bg-white/50 dark:bg-gray-900/50">
+                    <main className="flex-1 relative overflow-y-auto bg-white/50 dark:bg-gray-900/50">
                         <Routes>
                             {user?.role === 'admin' && <Route path="/settings" element={<Settings />} />}
                             {(user?.role === 'admin' || user?.role === 'manager') && (

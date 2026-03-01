@@ -28,7 +28,7 @@ export default function Login({ onLogin }) {
                     {/* Brand */}
                     <div className="flex items-center gap-3 mb-10">
                         <div className="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-black/10">
-                            <img src="/icon.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src="./icon.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <span className="text-xl font-bold text-white tracking-tight">EPOS Pharma</span>
                     </div>

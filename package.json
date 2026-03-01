@@ -26,6 +26,7 @@
     "concurrently": "^9.1.0",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
+    "javascript-obfuscator": "^5.3.0",
     "postcss": "^8.5.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -33,6 +34,7 @@
     "recharts": "^2.14.1",
     "tailwindcss": "^3.4.19",
     "vite": "^6.0.0",
+    "vite-plugin-javascript-obfuscator": "^3.1.0",
     "wait-on": "^8.0.1"
   },
   "build": {
@@ -41,6 +43,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "splash.html",
+      "assets/**/*",
       "backend/**/*",
       "utils/**/*",
       "dist/**/*"
@@ -50,7 +54,17 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EPOS Pharma",
+      "installerIcon": "assets/icon.png",
+      "uninstallerIcon": "assets/icon.png",
+      "installerHeaderIcon": "assets/icon.png"
     },
     "publish": {
       "provider": "github",

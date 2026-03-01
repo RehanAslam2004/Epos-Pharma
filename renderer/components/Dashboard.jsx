@@ -81,12 +81,14 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-6 gap-3 mb-6">
                 {[
                     { icon: '🛒', label: 'New Sale', path: '/pos' },
-                    { icon: '➕', label: 'Add Product', path: '/inventory' },
-                    { icon: '👤', label: 'Add Customer', path: '/customers' },
-                    { icon: '📊', label: 'View Reports', path: '/reports' },
+                    { icon: '📦', label: 'Inventory', path: '/inventory' },
+                    { icon: '👥', label: 'Customers', path: '/customers' },
+                    { icon: '🏢', label: 'Suppliers', path: '/suppliers' },
+                    { icon: '🧾', label: 'Purchases', path: '/purchases' },
+                    { icon: '📊', label: 'Reports', path: '/reports' },
                 ].map(a => (
                     <button key={a.label} onClick={() => navigate(a.path)} className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-sea-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
                         <span className="text-2xl group-hover:scale-110 transition-transform">{a.icon}</span>
