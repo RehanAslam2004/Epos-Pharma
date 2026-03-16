@@ -9,7 +9,9 @@ const supplierRoutes = require('./routes/suppliers');
 const reportRoutes = require('./routes/reports');
 const settingsRoutes = require('./routes/settings');
 const setupRoutes = require('./routes/setup');
-const { authMiddleware } = require('./middlewares/auth');
+const printRoutes = require('./routes/print');
+const { authMiddleware, requireAdmin, requireAdminOrManager } = require('./middlewares/auth');
+const { startAutomatedBackups } = require('./backupService');
 
 function createApp() {
     const app = express();
@@ -28,22 +30,23 @@ function createApp() {
     app.use('/api/suppliers', authMiddleware, supplierRoutes);
     app.use('/api/purchases', authMiddleware, require('./routes/purchases'));
     app.use('/api/expenses', authMiddleware, require('./routes/expenses'));
-    app.use('/api/reports', authMiddleware, reportRoutes);
+    app.use('/api/reports', authMiddleware, requireAdminOrManager, reportRoutes);
     app.use('/api/settings', authMiddleware, settingsRoutes);
+    app.use('/api/print', authMiddleware, printRoutes);
     // Notifications endpoint
-    app.get('/api/notifications', authMiddleware, async (req, res) => {
+    app.get('/api/notifications', authMiddleware, (req, res) => {
         try {
-            const db = await getDatabase();
+            const { dbGet } = require('./database');
             const alerts = [];
             // Low stock
-            const lowStock = db.exec("SELECT COUNT(*) as c FROM products WHERE stock > 0 AND stock <= 10");
-            if (lowStock.length && lowStock[0].values[0][0] > 0) alerts.push({ type: 'warning', msg: `${lowStock[0].values[0][0]} product(s) low on stock` });
+            const lowStock = dbGet("SELECT COUNT(*) as c FROM products WHERE stock > 0 AND stock <= 10");
+            if (lowStock && lowStock.c > 0) alerts.push({ type: 'warning', msg: `${lowStock.c} product(s) low on stock` });
             // Expired
-            const expired = db.exec("SELECT COUNT(*) as c FROM products WHERE expiry IS NOT NULL AND expiry < date('now')");
-            if (expired.length && expired[0].values[0][0] > 0) alerts.push({ type: 'error', msg: `${expired[0].values[0][0]} product(s) expired` });
+            const expired = dbGet("SELECT COUNT(*) as c FROM products WHERE expiry IS NOT NULL AND expiry < date('now')");
+            if (expired && expired.c > 0) alerts.push({ type: 'error', msg: `${expired.c} product(s) expired` });
             // Expiring soon (30 days)
-            const expiring = db.exec("SELECT COUNT(*) as c FROM products WHERE expiry IS NOT NULL AND expiry >= date('now') AND expiry <= date('now', '+30 days')");
-            if (expiring.length && expiring[0].values[0][0] > 0) alerts.push({ type: 'warning', msg: `${expiring[0].values[0][0]} product(s) expiring in 30 days` });
+            const expiring = dbGet("SELECT COUNT(*) as c FROM products WHERE expiry IS NOT NULL AND expiry >= date('now') AND expiry <= date('now', '+30 days')");
+            if (expiring && expiring.c > 0) alerts.push({ type: 'warning', msg: `${expiring.c} product(s) expiring in 30 days` });
             res.json(alerts);
         } catch (e) { res.json([]); }
     });
@@ -63,8 +66,12 @@ async function startServer(port = 3456) {
 
     return new Promise((resolve) => {
         const app = createApp();
-        const server = app.listen(port, '127.0.0.1', () => {
-            console.log(`EPOS Pharma backend running on http://127.0.0.1:${port}`);
+
+        // Start backup chron job
+        startAutomatedBackups();
+
+        const server = app.listen(port, '0.0.0.0', () => {
+            console.log(`EPOS Pharma backend running on network port :${port}`);
             resolve(server);
         });
     });

@@ -163,6 +163,7 @@ function initializeDatabase() {
       address TEXT DEFAULT '',
       type TEXT DEFAULT 'walk-in',
       balance REAL DEFAULT 0,
+      loyalty_points INTEGER DEFAULT 0,
       notes TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     )
@@ -199,7 +200,7 @@ function initializeDatabase() {
     )
   `);
 
-  // Purchase Items table (Updated for FIFO)
+  // Purchase Items table (Legacy)
   dbExec(`
     CREATE TABLE IF NOT EXISTS purchase_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,6 +213,44 @@ function initializeDatabase() {
       expiry TEXT,
       FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
+    )
+  `);
+
+  // Batches table (The real inventory engine)
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS batches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      batch_number TEXT DEFAULT '',
+      supplier_id INTEGER,
+      purchase_price REAL DEFAULT 0,
+      mrp REAL DEFAULT 0,
+      sales_price REAL DEFAULT 0,
+      discount_price REAL DEFAULT 0,
+      manufacturing_date TEXT,
+      expiry_date TEXT,
+      quantity_purchased INTEGER DEFAULT 0,
+      remaining_quantity INTEGER DEFAULT 0,
+      invoice_reference TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Stock movements (Immutable Audit Trail)
+  dbExec(`
+    CREATE TABLE IF NOT EXISTS stock_movements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      batch_id INTEGER,
+      type TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      reference_id INTEGER,
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE SET NULL
     )
   `);
 
@@ -270,6 +309,7 @@ function initializeDatabase() {
       quantity INTEGER DEFAULT 1,
       price REAL DEFAULT 0,
       subtotal REAL DEFAULT 0,
+      returned_quantity INTEGER DEFAULT 0,
       FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
     )
@@ -280,10 +320,11 @@ function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS sale_item_batches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       sale_item_id INTEGER NOT NULL,
-      purchase_item_id INTEGER NOT NULL,
+      batch_id INTEGER NOT NULL,
       quantity INTEGER NOT NULL,
+      returned_quantity INTEGER DEFAULT 0,
       FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE CASCADE,
-      FOREIGN KEY (purchase_item_id) REFERENCES purchase_items(id) ON DELETE RESTRICT
+      FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE RESTRICT
     )
   `);
 
@@ -324,7 +365,12 @@ function initializeDatabase() {
       payment_methods TEXT DEFAULT '["cash","jazzcash","easypaisa","card"]',
       theme TEXT DEFAULT 'green',
       currency TEXT DEFAULT 'PKR',
-      tax_rate REAL DEFAULT 0
+      tax_rate REAL DEFAULT 0,
+      invoice_type TEXT DEFAULT 'A6',
+      printer_interface TEXT DEFAULT '',
+      expense_categories TEXT DEFAULT '["Rent", "Electricity", "Salaries", "Supplies", "Other"]',
+      amount_for_one_point REAL DEFAULT 0,
+      loyalty_discount_per_point REAL DEFAULT 0
     )
   `);
 
@@ -378,6 +424,132 @@ function initializeDatabase() {
       dbExec(`UPDATE sales SET paid_amount = total, status = 'paid'`);
     }
   } catch (e) { console.error("Migration error adding paid_amount to sales:", e); }
+
+  // --- Advanced Pharmacy Capabilities Migrations ---
+  // Products table additions (generic names, controlled drugs, etc)
+  try {
+    const pInfo = dbAll("PRAGMA table_info(products)");
+    const cols = pInfo.map(c => c.name);
+    if (!cols.includes('generic_name')) dbExec(`ALTER TABLE products ADD COLUMN generic_name TEXT DEFAULT ''`);
+    if (!cols.includes('strength')) dbExec(`ALTER TABLE products ADD COLUMN strength TEXT DEFAULT ''`);
+    if (!cols.includes('form')) dbExec(`ALTER TABLE products ADD COLUMN form TEXT DEFAULT ''`);
+    if (!cols.includes('pack_size')) dbExec(`ALTER TABLE products ADD COLUMN pack_size TEXT DEFAULT ''`);
+    if (!cols.includes('variant')) dbExec(`ALTER TABLE products ADD COLUMN variant TEXT DEFAULT ''`);
+    if (!cols.includes('unit')) dbExec(`ALTER TABLE products ADD COLUMN unit TEXT DEFAULT ''`);
+    if (!cols.includes('location')) dbExec(`ALTER TABLE products ADD COLUMN location TEXT DEFAULT ''`);
+    if (!cols.includes('is_prescription_required')) dbExec(`ALTER TABLE products ADD COLUMN is_prescription_required INTEGER DEFAULT 0`);
+    if (!cols.includes('is_narcotic')) dbExec(`ALTER TABLE products ADD COLUMN is_narcotic INTEGER DEFAULT 0`);
+    if (!cols.includes('tax_percentage')) dbExec(`ALTER TABLE products ADD COLUMN tax_percentage REAL DEFAULT 0`);
+    if (!cols.includes('min_selling_price')) dbExec(`ALTER TABLE products ADD COLUMN min_selling_price REAL DEFAULT 0`);
+    if (!cols.includes('allow_below_mrp')) dbExec(`ALTER TABLE products ADD COLUMN allow_below_mrp INTEGER DEFAULT 1`);
+  } catch (e) { console.error("Migration error adding advanced product columns:", e); }
+
+  // Customers table additions (CNIC for narcotics)
+  try {
+    const pInfo = dbAll("PRAGMA table_info(customers)");
+    if (!pInfo.some(c => c.name === 'cnic')) {
+      dbExec(`ALTER TABLE customers ADD COLUMN cnic TEXT DEFAULT ''`);
+    }
+  } catch (e) { console.error("Migration error adding cnic to customers:", e); }
+
+  // Sales table additions (prescription/doctor info)
+  try {
+    const pInfo = dbAll("PRAGMA table_info(sales)");
+    const cols = pInfo.map(c => c.name);
+    if (!cols.includes('prescription_image')) dbExec(`ALTER TABLE sales ADD COLUMN prescription_image TEXT DEFAULT ''`);
+    if (!cols.includes('doctor_name')) dbExec(`ALTER TABLE sales ADD COLUMN doctor_name TEXT DEFAULT ''`);
+    if (!cols.includes('patient_name')) dbExec(`ALTER TABLE sales ADD COLUMN patient_name TEXT DEFAULT ''`);
+    if (!cols.includes('patient_contact')) dbExec(`ALTER TABLE sales ADD COLUMN patient_contact TEXT DEFAULT ''`);
+  } catch (e) { console.error("Migration error adding advanced fields to sales:", e); }
+
+  // Extend sale_item_batches with batch_id to point to batches table and drop legacy purchase_item_id
+  try {
+    let pInfo = dbAll("PRAGMA table_info(sale_item_batches)");
+    let cols = pInfo.map(c => c.name);
+    if (!cols.includes('batch_id')) {
+      dbExec(`ALTER TABLE sale_item_batches ADD COLUMN batch_id INTEGER`);
+      if (cols.includes('purchase_item_id')) {
+        dbExec(`UPDATE sale_item_batches SET batch_id = purchase_item_id`);
+      }
+      // Re-read schema after ALTER
+      pInfo = dbAll("PRAGMA table_info(sale_item_batches)");
+      cols = pInfo.map(c => c.name);
+    }
+    // Drop legacy purchase_item_id by recreating the table (only if the column still exists)
+    if (cols.includes('purchase_item_id')) {
+      const hasReturned = cols.includes('returned_quantity');
+      dbExec(`
+        CREATE TABLE sale_item_batches_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sale_item_id INTEGER NOT NULL,
+          batch_id INTEGER NOT NULL,
+          quantity INTEGER NOT NULL,
+          returned_quantity INTEGER DEFAULT 0,
+          FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE CASCADE,
+          FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE RESTRICT
+        )
+      `);
+      dbExec(`
+        INSERT INTO sale_item_batches_new (id, sale_item_id, batch_id, quantity, returned_quantity)
+        SELECT id, sale_item_id, batch_id, quantity, ${hasReturned ? 'returned_quantity' : '0'}
+        FROM sale_item_batches
+      `);
+      dbExec(`DROP TABLE sale_item_batches`);
+      dbExec(`ALTER TABLE sale_item_batches_new RENAME TO sale_item_batches`);
+    }
+  } catch (e) { console.error("Migration error fixing sale_item_batches schema:", e); }
+
+  // Ensure invoice tracking and expense categories on settings
+  try {
+    const pInfo = dbAll("PRAGMA table_info(settings)");
+    const cols = pInfo.map(c => c.name);
+    if (!cols.includes('invoice_type')) dbExec(`ALTER TABLE settings ADD COLUMN invoice_type TEXT DEFAULT 'A6'`);
+    if (!cols.includes('printer_interface')) dbExec(`ALTER TABLE settings ADD COLUMN printer_interface TEXT DEFAULT ''`);
+    if (!cols.includes('expense_categories')) dbExec(`ALTER TABLE settings ADD COLUMN expense_categories TEXT DEFAULT '["Rent", "Electricity", "Salaries", "Supplies", "Other"]'`);
+    if (!cols.includes('amount_for_one_point')) dbExec(`ALTER TABLE settings ADD COLUMN amount_for_one_point REAL DEFAULT 0`);
+    if (!cols.includes('loyalty_discount_per_point')) dbExec(`ALTER TABLE settings ADD COLUMN loyalty_discount_per_point REAL DEFAULT 0`);
+  } catch (e) { console.error("Migration error adding printer settings:", e); }
+
+  // Ensure loyalty points on customers
+  try {
+    const pInfo = dbAll("PRAGMA table_info(customers)");
+    const cols = pInfo.map(c => c.name);
+    if (!cols.includes('loyalty_points')) dbExec(`ALTER TABLE customers ADD COLUMN loyalty_points INTEGER DEFAULT 0`);
+  } catch (e) { console.error("Migration error adding loyalty points:", e); }
+
+  // Ensure returned_quantity on sale_items
+  try {
+    const pInfo = dbAll("PRAGMA table_info(sale_items)");
+    const cols = pInfo.map(c => c.name);
+    if (!cols.includes('returned_quantity')) dbExec(`ALTER TABLE sale_items ADD COLUMN returned_quantity INTEGER DEFAULT 0`);
+  } catch (e) { console.error("Migration error adding returned_quantity:", e); }
+
+  // Ensure returned_quantity on sale_item_batches
+  try {
+    const pInfo = dbAll("PRAGMA table_info(sale_item_batches)");
+    const cols = pInfo.map(c => c.name);
+    if (!cols.includes('returned_quantity')) dbExec(`ALTER TABLE sale_item_batches ADD COLUMN returned_quantity INTEGER DEFAULT 0`);
+  } catch (e) { console.error("Migration error adding returned_quantity to sale_item_batches:", e); }
+
+  // Migrate legacy purchase_items to batches (Initial Seed)
+  try {
+    const batchCountData = dbAll("SELECT COUNT(*) as c FROM batches");
+    const batchCount = batchCountData[0].c;
+    if (batchCount === 0) {
+      dbExec(`
+        INSERT INTO batches (id, product_id, batch_number, purchase_price, sales_price, expiry_date, quantity_purchased, remaining_quantity, created_at)
+        SELECT pi.id, pi.product_id, pi.batch, pi.purchase_price, p.selling_price, pi.expiry, pi.quantity, MAX(0, pi.remaining_quantity), p.created_at
+        FROM purchase_items pi
+        JOIN products p ON p.id = pi.product_id
+      `);
+      dbExec(`
+        INSERT INTO stock_movements (product_id, batch_id, type, quantity, reference_id, notes)
+        SELECT product_id, id, 'adjustment', remaining_quantity, id, 'Initial migration from legacy purchase_items'
+        FROM batches
+        WHERE remaining_quantity > 0
+      `);
+    }
+  } catch (e) { console.error("Migration error moving purchase_items to batches:", e); }
 
   // --- Indexes for High Performance ---
   dbExec(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)`);

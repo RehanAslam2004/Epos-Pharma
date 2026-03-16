@@ -1,5 +1,19 @@
 const { dbGet, dbAll } = require('../database');
 
+// Cache trial license to avoid DB hit on every request
+let trialCache = null;
+let trialCacheTime = 0;
+const TRIAL_CACHE_TTL = 60000; // 1 minute
+
+function getCachedTrial() {
+    const now = Date.now();
+    if (!trialCache || now - trialCacheTime > TRIAL_CACHE_TTL) {
+        trialCache = dbGet('SELECT * FROM trial_license LIMIT 1');
+        trialCacheTime = now;
+    }
+    return trialCache;
+}
+
 function authMiddleware(req, res, next) {
     const token = req.headers['x-session-token'];
     if (!token) {
@@ -10,8 +24,8 @@ function authMiddleware(req, res, next) {
         return res.status(401).json({ error: 'Invalid or expired session' });
     }
 
-    // Strict 15-Day Trial Enforcement Shield
-    const trial = dbGet('SELECT * FROM trial_license LIMIT 1');
+    // Strict 15-Day Trial Enforcement Shield (cached)
+    const trial = getCachedTrial();
     if (trial && !trial.is_licensed) {
         const now = new Date();
         const end = new Date(trial.trial_end);
@@ -36,4 +50,18 @@ function authMiddleware(req, res, next) {
     next();
 }
 
-module.exports = { authMiddleware };
+function requireAdmin(req, res, next) {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Administrator access required for this action' });
+    }
+    next();
+}
+
+function requireAdminOrManager(req, res, next) {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'manager')) {
+        return res.status(403).json({ error: 'Administrator or Manager access required for this action' });
+    }
+    next();
+}
+
+module.exports = { authMiddleware, requireAdmin, requireAdminOrManager };

@@ -1,5 +1,6 @@
 const express = require('express');
-const { dbRun, dbGet, dbAll } = require('../database');
+const { dbRun, dbGet, dbAll, dbExec, saveDb } = require('../database');
+const { requireAdmin } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -46,9 +47,9 @@ router.get('/:id/purchases', (req, res) => {
 // POST /api/customers
 router.post('/', (req, res) => {
     try {
-        const { name, phone, email, address, type, notes } = req.body;
+        const { name, phone, email, address, type, notes, cnic } = req.body;
         if (!name) return res.status(400).json({ error: 'Name is required' });
-        const result = dbRun('INSERT INTO customers (name, phone, email, address, type, notes) VALUES (?, ?, ?, ?, ?, ?)', [name, phone || '', email || '', address || '', type || 'walk-in', notes || '']);
+        const result = dbRun('INSERT INTO customers (name, phone, email, address, type, notes, cnic) VALUES (?, ?, ?, ?, ?, ?, ?)', [name, phone || '', email || '', address || '', type || 'walk-in', notes || '', cnic || '']);
         const customer = dbGet('SELECT * FROM customers WHERE id = ?', [result.lastInsertRowid]);
         res.json(customer);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -57,15 +58,15 @@ router.post('/', (req, res) => {
 // PUT /api/customers/:id
 router.put('/:id', (req, res) => {
     try {
-        const { name, phone, email, address, type, notes } = req.body;
-        dbRun('UPDATE customers SET name = ?, phone = ?, email = ?, address = ?, type = ?, notes = ? WHERE id = ?', [name, phone || '', email || '', address || '', type || 'walk-in', notes || '', parseInt(req.params.id)]);
+        const { name, phone, email, address, type, notes, cnic } = req.body;
+        dbRun('UPDATE customers SET name = ?, phone = ?, email = ?, address = ?, type = ?, notes = ?, cnic = ? WHERE id = ?', [name, phone || '', email || '', address || '', type || 'walk-in', notes || '', cnic || '', parseInt(req.params.id)]);
         const customer = dbGet('SELECT * FROM customers WHERE id = ?', [parseInt(req.params.id)]);
         res.json(customer);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // DELETE /api/customers/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
     try {
         dbRun('DELETE FROM customers WHERE id = ?', [parseInt(req.params.id)]);
         res.json({ message: 'Customer deleted' });
@@ -107,7 +108,7 @@ router.post('/:id/payment', (req, res) => {
 
         if (!paymentAmount || paymentAmount <= 0) return res.status(400).json({ error: 'Valid payment amount required' });
 
-        dbRun('BEGIN TRANSACTION');
+        dbExec('BEGIN TRANSACTION');
 
         const insert = dbRun(`
             INSERT INTO customer_payments (customer_id, amount, method, reference, date) 
@@ -148,16 +149,15 @@ router.post('/:id/payment', (req, res) => {
         }
 
         // Decrease the customer's outstanding liability balance
-        dbRun(`UPDATE customers SET balance = balance - ? WHERE id = ?`, [paymentAmount, id]);
+        dbRun(`UPDATE customers SET balance = balance - ? WHERE id = ?`, [paymentAmount, id], true);
 
-        const { saveDb } = require('../database');
+        dbExec('COMMIT');
         saveDb();
-        dbRun('COMMIT');
 
         const customer = dbGet('SELECT * FROM customers WHERE id = ?', [id]);
         res.json({ success: true, payment_id: insert.lastInsertRowid, new_balance: customer.balance });
     } catch (err) {
-        dbRun('ROLLBACK');
+        try { dbExec('ROLLBACK'); } catch (rbErr) { }
         res.status(500).json({ error: err.message });
     }
 });

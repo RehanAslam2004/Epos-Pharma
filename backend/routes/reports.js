@@ -17,7 +17,7 @@ router.get('/sales', (req, res) => {
         else if (period === 'year') dateFilter = `AND strftime('%Y', s.date) = strftime('%Y', 'now')`;
 
         const summary = dbGet(`SELECT COUNT(*) as total_sales, COALESCE(SUM(total), 0) as total_revenue, COALESCE(AVG(total), 0) as avg_sale, COALESCE(SUM(discount), 0) as total_discount FROM sales s WHERE 1=1 ${dateFilter}`, params);
-        const dailyData = dbAll(`SELECT date(s.date) as day, COUNT(*) as sales, COALESCE(SUM(s.total), 0) as revenue FROM sales s WHERE 1=1 ${dateFilter} GROUP BY date(s.date) ORDER BY day ASC`, params);
+        const dailyData = dbAll(`SELECT date(s.date) as day, COUNT(*) as sales, COALESCE(SUM(s.total), 0) as revenue, COALESCE(SUM(s.discount), 0) as discount, (COALESCE(SUM(s.total), 0) / COUNT(*)) as avg_sale FROM sales s WHERE 1=1 ${dateFilter} GROUP BY date(s.date) ORDER BY day ASC`, params);
         const topProducts = dbAll(`SELECT si.product_name, SUM(si.quantity) as total_qty, SUM(si.subtotal) as total_revenue FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE 1=1 ${dateFilter} GROUP BY si.product_id ORDER BY total_revenue DESC LIMIT 10`, params);
 
         res.json({ summary, dailyData, topProducts });
@@ -28,8 +28,8 @@ router.get('/sales', (req, res) => {
 router.get('/inventory', (req, res) => {
     try {
         const lowStock = dbAll('SELECT * FROM products WHERE stock <= 10 ORDER BY stock ASC');
-        const expired = dbAll("SELECT * FROM products WHERE expiry IS NOT NULL AND expiry < date('now') ORDER BY expiry ASC");
-        const expiringSoon = dbAll("SELECT * FROM products WHERE expiry IS NOT NULL AND expiry BETWEEN date('now') AND date('now', '+30 days') ORDER BY expiry ASC");
+        const expired = dbAll(`SELECT p.*, b.batch_number as batch, b.expiry_date as expiry, b.remaining_quantity as stock FROM batches b JOIN products p ON b.product_id = p.id WHERE b.remaining_quantity > 0 AND b.expiry_date IS NOT NULL AND b.expiry_date != '' AND b.expiry_date < date('now') ORDER BY b.expiry_date ASC`);
+        const expiringSoon = dbAll(`SELECT p.*, b.batch_number as batch, b.expiry_date as expiry, b.remaining_quantity as stock FROM batches b JOIN products p ON b.product_id = p.id WHERE b.remaining_quantity > 0 AND b.expiry_date IS NOT NULL AND b.expiry_date != '' AND b.expiry_date BETWEEN date('now') AND date('now', '+30 days') ORDER BY b.expiry_date ASC`);
         const totalValue = dbGet('SELECT COALESCE(SUM(stock * purchase_price), 0) as cost_value, COALESCE(SUM(stock * selling_price), 0) as sell_value FROM products');
         const categoryBreakdown = dbAll('SELECT category, COUNT(*) as count, SUM(stock) as total_stock FROM products GROUP BY category ORDER BY count DESC');
         res.json({ lowStock, expired, expiringSoon, totalValue, categoryBreakdown });
@@ -72,11 +72,11 @@ router.get('/dashboard', (req, res) => {
         const monthRevenue = dbGet(`SELECT COALESCE(SUM(total), 0) as revenue FROM sales WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')`);
         const monthExpenses = dbGet(`SELECT COALESCE(SUM(amount), 0) as expenses FROM expenses WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')`);
         const lowStockCount = dbGet('SELECT COUNT(*) as count FROM products WHERE stock <= 10');
-        const expiringSoonCount = dbGet("SELECT COUNT(*) as count FROM products WHERE expiry IS NOT NULL AND expiry BETWEEN date('now') AND date('now', '+60 days')");
+        const expiringSoonCount = dbGet("SELECT COUNT(*) as count FROM batches WHERE remaining_quantity > 0 AND expiry_date IS NOT NULL AND expiry_date != '' AND expiry_date BETWEEN date('now') AND date('now', '+60 days')");
         const newCustomers = dbGet("SELECT COUNT(*) as count FROM customers WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')");
         const totalProducts = dbGet('SELECT COUNT(*) as count FROM products');
         const totalCustomers = dbGet('SELECT COUNT(*) as count FROM customers');
-        const weeklySales = dbAll(`SELECT date(date) as day, COUNT(*) as sales, COALESCE(SUM(total), 0) as revenue FROM sales WHERE date(date) >= date('now', '-7 days') GROUP BY date(date) ORDER BY day ASC`);
+        const weeklySales = dbAll(`SELECT date(date) as day, COUNT(*) as sales, COALESCE(SUM(total), 0) as revenue, COALESCE(SUM(discount), 0) as discount, (COALESCE(SUM(total), 0) / COUNT(*)) as avg_sale FROM sales WHERE date(date) >= date('now', '-7 days') GROUP BY date(date) ORDER BY day ASC`);
         const topProducts = dbAll(`SELECT si.product_name, SUM(si.quantity) as qty FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE date(s.date) >= date('now', '-30 days') GROUP BY si.product_id ORDER BY qty DESC LIMIT 5`);
         const recentSales = dbAll(`SELECT s.id, s.total, s.payment_method, s.date, c.name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id ORDER BY s.date DESC LIMIT 5`);
 
@@ -97,6 +97,34 @@ router.get('/dashboard', (req, res) => {
             daysSinceBackup,
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/reports/stock-movements
+router.get('/stock-movements', (req, res) => {
+    try {
+        const { product_id, limit = 50, offset = 0 } = req.query;
+        let query = `
+            SELECT sm.*, p.name as product_name, b.batch_number
+            FROM stock_movements sm
+            JOIN products p ON sm.product_id = p.id
+            LEFT JOIN batches b ON sm.batch_id = b.id
+            WHERE 1=1
+        `;
+        const params = [];
+
+        if (product_id) {
+            query += ` AND sm.product_id = ?`;
+            params.push(product_id);
+        }
+
+        query += ` ORDER BY sm.created_at DESC LIMIT ? OFFSET ?`;
+        params.push(parseInt(limit), parseInt(offset));
+
+        const movements = dbAll(query, params);
+        res.json(movements);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;

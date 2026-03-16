@@ -1,0 +1,69 @@
+﻿
+> epos-pharma@1.0.0 start
+> electron .
+
+
+node.exe : App threw 
+an error during load
+At line:1 char:1
++ & "C:\Program Files\
+nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (App threw    
+ an error during l    
+oad:String) [], R    
+emoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+ReferenceError: 
+express is not defined
+    at 
+Object.<anonymous> 
+(C:\Users\AR Computers
+\Documents\Rehan 
+Project\Epos Pharma\ba
+ckend\routes\products.
+js:4:16)
+    at 
+Module._compile (node:
+internal/modules/cjs/l
+oader:1484:14)
+    at Module._extensi
+ons..js (node:internal
+/modules/cjs/loader:15
+64:10)
+    at Module.load (no
+de:internal/modules/cj
+s/loader:1295:32)
+    at Module._load (n
+ode:internal/modules/c
+js/loader:1111:12)
+    at c._load (node:e
+lectron/js2c/node_init
+:2:16955)
+    at Module.require 
+(node:internal/modules
+/cjs/loader:1318:19)
+    at require (node:i
+nternal/modules/helper
+s:179:18)
+    at 
+Object.<anonymous> 
+(C:\Users\AR Computers
+\Documents\Rehan 
+Project\Epos Pharma\ba
+ckend\server.js:5:23)
+    at 
+Module._compile (node:
+internal/modules/cjs/l
+oader:1484:14)

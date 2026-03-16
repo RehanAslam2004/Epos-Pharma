@@ -15,7 +15,7 @@ export default function PurchaseForm() {
     // Form State
     const [form, setForm] = useState({
         supplier_id: '',
-        invoice_number: `INV-${Date.now()}`,
+        invoice_number: '',
         date: new Date().toISOString().split('T')[0],
         payment_method: 'credit',
         paid_amount: 0
@@ -109,7 +109,7 @@ export default function PurchaseForm() {
                         </div>
                         <div>
                             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Invoice Number</label>
-                            <input type="text" name="invoice_number" value={form.invoice_number} onChange={handleFormChange} className={inputCls} required />
+                            <input type="text" name="invoice_number" value={form.invoice_number} onChange={handleFormChange} className={inputCls} placeholder="Leave blank to auto-generate" />
                         </div>
                         <div>
                             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Invoice Date</label>

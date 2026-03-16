@@ -66,6 +66,21 @@ export default function Dashboard() {
 
     const navigateToInventory = (filter) => navigate(`/inventory`, { state: { defaultFilter: filter } });
 
+    const padWeeklyData = (weeklySales) => {
+        if (!weeklySales) return [];
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const existing = weeklySales.find(s => s.day === dateStr);
+            days.push(existing || { day: dateStr, revenue: 0, sales: 0, avg_sale: 0 });
+        }
+        return days;
+    };
+
+    const paddedWeekly = padWeeklyData(data?.weeklySales);
+
     return (
         <div className="p-6 animate-fade-up">
             {/* Trial and Backup Banners */}
@@ -100,8 +115,8 @@ export default function Dashboard() {
 
             {/* Stat cards style from Image 1 */}
             <div className="grid grid-cols-4 gap-4 mb-6">
-                <StatCard title="MONTH REVENUE" value={`PKR ${(data?.monthRevenue || 0).toLocaleString()}`} subtitle="Gross volume month" data={data?.weeklySales} dataKey="revenue" color="#6366f1" />
-                <StatCard title="MONTH PROFIT" value={`PKR ${((data?.monthRevenue || 0) - (data?.monthExpenses || 0)).toLocaleString()}`} subtitle="Revenue minus Expenses" data={data?.weeklySales} dataKey="revenue" color="#10b981" />
+                <StatCard title="MONTH REVENUE" value={`PKR ${(data?.monthRevenue || 0).toLocaleString()}`} subtitle="Gross volume month" data={paddedWeekly} dataKey="revenue" color="#6366f1" />
+                <StatCard title="MONTH PROFIT" value={`PKR ${((data?.monthRevenue || 0) - (data?.monthExpenses || 0)).toLocaleString()}`} subtitle="Revenue minus Expenses" data={paddedWeekly} dataKey="revenue" color="#10b981" />
                 <StatCard title="EXPIRING SOON" value={data?.expiringSoonCount || 0} subtitle="Items expiring in 60 days" color={data?.expiringSoonCount > 0 ? '#f43f5e' : '#f59e0b'} onClick={() => navigateToInventory('expiring')} />
                 <StatCard title="WARNING PRODUCTS" value={data?.lowStockCount || 0} subtitle="Items low on stock" color={data?.lowStockCount > 0 ? '#f43f5e' : '#f59e0b'} onClick={() => navigateToInventory('low_stock')} />
             </div>

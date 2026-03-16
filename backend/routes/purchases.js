@@ -70,11 +70,29 @@ router.post('/', (req, res) => {
         for (const item of items) {
             // Log line item
             dbRun(`
-                INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, batch, expiry) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            `, [purchaseId, item.product_id, item.quantity, item.purchase_price, item.batch || '', item.expiry], true);
+                INSERT INTO purchase_items (purchase_id, product_id, quantity, remaining_quantity, purchase_price, batch, expiry) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [purchaseId, item.product_id, item.quantity, item.quantity, item.purchase_price, item.batch || '', item.expiry], true);
 
-            // Auto-receive inventory stock & update the vendor price
+            // Fetch current selling price for batch initialization
+            const prod = dbGet('SELECT selling_price FROM products WHERE id = ?', [item.product_id]);
+            const salesPrice = prod ? prod.selling_price : 0;
+
+            // Create new inventory batch
+            const batchResult = dbRun(`
+                INSERT INTO batches (product_id, batch_number, supplier_id, purchase_price, sales_price, expiry_date, quantity_purchased, remaining_quantity, invoice_reference)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [item.product_id, item.batch || '', supplier_id, item.purchase_price, salesPrice, item.expiry, item.quantity, item.quantity, purchaseId.toString()], true);
+
+            const batchId = batchResult.lastInsertRowid;
+
+            // Log stock movement audit
+            dbRun(`
+                INSERT INTO stock_movements (product_id, batch_id, type, quantity, reference_id, notes)
+                VALUES (?, ?, 'purchase', ?, ?, 'Purchased on Invoice')
+            `, [item.product_id, batchId, item.quantity, purchaseId], true);
+
+            // Auto-receive legacy inventory stock & update the vendor price
             dbRun(`
                 UPDATE products 
                 SET stock = stock + ?, purchase_price = ? 

@@ -1,5 +1,6 @@
 const express = require('express');
 const { dbRun, dbGet, dbAll } = require('../database');
+const { requireAdmin } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -11,9 +12,9 @@ router.get('/', (req, res) => {
         const params = [];
 
         if (search) {
-            query += ` AND (p.name LIKE ? OR p.brand LIKE ? OR p.batch LIKE ? OR p.barcode LIKE ?)`;
+            query += ` AND (p.name LIKE ? OR p.generic_name LIKE ? OR p.brand LIKE ? OR p.batch LIKE ? OR p.barcode LIKE ?)`;
             const s = `%${search}%`;
-            params.push(s, s, s, s);
+            params.push(s, s, s, s, s);
         }
         if (supplier_id) { query += ` AND p.supplier_id = ?`; params.push(parseInt(supplier_id)); }
         if (low_stock === 'true') query += ` AND p.stock <= 10`;
@@ -49,7 +50,8 @@ router.get('/:id', (req, res) => {
 // POST /api/products
 router.post('/', (req, res) => {
     try {
-        const { name, brand, batch, expiry, purchase_price, selling_price, stock, barcode, supplier_id, category, description } = req.body;
+        const { name, brand, batch, expiry, purchase_price, selling_price, stock, barcode, supplier_id, category, description,
+            generic_name, strength, form, pack_size, variant, unit, location, is_prescription_required, is_narcotic, tax_percentage, min_selling_price, allow_below_mrp } = req.body;
         if (!name) return res.status(400).json({ error: 'Product name is required' });
 
         let finalBarcode = barcode;
@@ -63,8 +65,11 @@ router.post('/', (req, res) => {
         if (barcodeExists) return res.status(409).json({ error: 'Barcode already exists' });
 
         const result = dbRun(
-            `INSERT INTO products (name, brand, batch, expiry, purchase_price, selling_price, stock, barcode, supplier_id, category, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [name, brand || '', batch || '', expiry || null, purchase_price || 0, selling_price || 0, stock || 0, finalBarcode, supplier_id || null, category || 'General', description || '']
+            `INSERT INTO products (name, brand, batch, expiry, purchase_price, selling_price, stock, barcode, supplier_id, category, description,
+                generic_name, strength, form, pack_size, variant, unit, location, is_prescription_required, is_narcotic, tax_percentage, min_selling_price, allow_below_mrp)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, brand || '', batch || '', expiry || null, purchase_price || 0, selling_price || 0, stock || 0, finalBarcode, supplier_id || null, category || 'General', description || '',
+                generic_name || '', strength || '', form || '', pack_size || '', variant || '', unit || '', location || '', is_prescription_required ? 1 : 0, is_narcotic ? 1 : 0, tax_percentage || 0, min_selling_price || 0, allow_below_mrp === false ? 0 : 1]
         );
         const product = dbGet('SELECT * FROM products WHERE id = ?', [result.lastInsertRowid]);
         res.json(product);
@@ -74,7 +79,8 @@ router.post('/', (req, res) => {
 // PUT /api/products/:id
 router.put('/:id', (req, res) => {
     try {
-        const { name, brand, batch, expiry, purchase_price, selling_price, stock, barcode, supplier_id, category, description } = req.body;
+        const { name, brand, batch, expiry, purchase_price, selling_price, stock, barcode, supplier_id, category, description,
+            generic_name, strength, form, pack_size, variant, unit, location, is_prescription_required, is_narcotic, tax_percentage, min_selling_price, allow_below_mrp } = req.body;
         const id = parseInt(req.params.id);
 
         if (barcode) {
@@ -83,8 +89,11 @@ router.put('/:id', (req, res) => {
         }
 
         dbRun(
-            `UPDATE products SET name = ?, brand = ?, batch = ?, expiry = ?, purchase_price = ?, selling_price = ?, stock = ?, barcode = ?, supplier_id = ?, category = ?, description = ?, updated_at = datetime('now') WHERE id = ?`,
-            [name, brand || '', batch || '', expiry || null, purchase_price || 0, selling_price || 0, stock || 0, barcode, supplier_id || null, category || 'General', description || '', id]
+            `UPDATE products SET name = ?, brand = ?, batch = ?, expiry = ?, purchase_price = ?, selling_price = ?, stock = ?, barcode = ?, supplier_id = ?, category = ?, description = ?, updated_at = datetime('now'),
+             generic_name = ?, strength = ?, form = ?, pack_size = ?, variant = ?, unit = ?, location = ?, is_prescription_required = ?, is_narcotic = ?, tax_percentage = ?, min_selling_price = ?, allow_below_mrp = ?
+             WHERE id = ?`,
+            [name, brand || '', batch || '', expiry || null, purchase_price || 0, selling_price || 0, stock || 0, barcode, supplier_id || null, category || 'General', description || '',
+                generic_name || '', strength || '', form || '', pack_size || '', variant || '', unit || '', location || '', is_prescription_required ? 1 : 0, is_narcotic ? 1 : 0, tax_percentage || 0, min_selling_price || 0, allow_below_mrp === false ? 0 : 1, id]
         );
         const product = dbGet('SELECT * FROM products WHERE id = ?', [id]);
         res.json(product);
@@ -92,7 +101,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/products/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
     try {
         dbRun('DELETE FROM products WHERE id = ?', [parseInt(req.params.id)]);
         res.json({ message: 'Product deleted' });

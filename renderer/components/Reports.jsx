@@ -60,6 +60,24 @@ export default function Reports() {
         setLoading(false);
     }
 
+    const padDailyData = (dailyData) => {
+        if (!dailyData) return [];
+        if (fromDate && toDate) return dailyData; // Don't pad custom ranges
+        
+        const days = [];
+        const count = period === 'week' ? 7 : period === 'month' ? 30 : 7;
+        for (let i = count - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const existing = dailyData.find(s => s.day === dateStr);
+            days.push(existing || { day: dateStr, sales: 0, revenue: 0, discount: 0, avg_sale: 0 });
+        }
+        return days;
+    };
+
+    const paddedDaily = padDailyData(salesData?.dailyData);
+
     function exportCSV(headers, rows, filename) {
         const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c || ''}"`).join(','))].join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -96,10 +114,10 @@ export default function Reports() {
                 {tab === 'sales' && salesData && <>
                     {/* Top Stats */}
                     <div className="grid grid-cols-4 gap-4 mb-6">
-                        <StatCard title="TOTAL DEALS" value={salesData.summary?.total_sales || 0} subtitle="Transactions" data={salesData.dailyData} dataKey="sales" color="#10b981" />
-                        <StatCard title="TOTAL VALUE" value={`PKR ${(salesData.summary?.total_revenue || 0).toLocaleString()}`} subtitle="Gross Revenue" data={salesData.dailyData} dataKey="revenue" color="#6366f1" />
-                        <StatCard title="TOTAL DISCOUNT" value={`PKR ${(salesData.summary?.total_discount || 0).toLocaleString()}`} subtitle="Given Discounts" data={salesData.dailyData} dataKey="sales" color="#f59e0b" />
-                        <StatCard title="AVG DEAL SIZE" value={`PKR ${Math.round(salesData.summary?.avg_sale || 0).toLocaleString()}`} subtitle="Per Transaction" data={salesData.dailyData} dataKey="revenue" color="#14b8a6" />
+                        <StatCard title="TOTAL DEALS" value={salesData.summary?.total_sales || 0} subtitle="Transactions" data={paddedDaily} dataKey="sales" color="#10b981" />
+                        <StatCard title="TOTAL VALUE" value={`PKR ${(salesData.summary?.total_revenue || 0).toLocaleString()}`} subtitle="Gross Revenue" data={paddedDaily} dataKey="revenue" color="#6366f1" />
+                        <StatCard title="TOTAL DISCOUNT" value={`PKR ${(salesData.summary?.total_discount || 0).toLocaleString()}`} subtitle="Given Discounts" data={paddedDaily} dataKey="discount" color="#f59e0b" />
+                        <StatCard title="AVG DEAL SIZE" value={`PKR ${Math.round(salesData.summary?.avg_sale || 0).toLocaleString()}`} subtitle="Per Transaction" data={paddedDaily} dataKey="avg_sale" color="#14b8a6" />
                     </div>
 
                     {/* Main Area Chart */}
@@ -117,10 +135,10 @@ export default function Reports() {
                             </div>
                         </div>
 
-                        {salesData.dailyData?.length > 0 ? (
+                        {paddedDaily?.length > 0 ? (
                             <div className="h-[250px] w-full mt-2">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={salesData.dailyData?.length === 1 ? [{ ...salesData.dailyData[0], day: salesData.dailyData[0].day + ' ' }, salesData.dailyData[0]] : salesData.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                    <AreaChart data={paddedDaily?.length === 1 ? [{ ...paddedDaily[0], day: paddedDaily[0].day + ' ' }, paddedDaily[0]] : paddedDaily} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="mainAreaGrad" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />

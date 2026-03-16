@@ -13,15 +13,38 @@ router.get('/', (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/settings/network
+router.get('/network', (req, res) => {
+    try {
+        const os = require('os');
+        const interfaces = os.networkInterfaces();
+        let ip = '127.0.0.1';
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    ip = iface.address;
+                    break;
+                }
+            }
+        }
+        res.json({ ip });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // PUT /api/settings
 router.put('/', (req, res) => {
     try {
-        const { pharmacy_name, phone, address, email, payment_methods, theme, currency, tax_rate } = req.body;
+        const { pharmacy_name, phone, address, email, payment_methods, theme, currency, tax_rate, invoice_type, printer_interface, expense_categories, amount_for_one_point, loyalty_discount_per_point } = req.body;
         dbRun(
-            `UPDATE settings SET pharmacy_name = ?, phone = ?, address = ?, email = ?, payment_methods = ?, theme = ?, currency = ?, tax_rate = ? WHERE id = 1`,
+            `UPDATE settings SET pharmacy_name = ?, phone = ?, address = ?, email = ?, payment_methods = ?, theme = ?, currency = ?, tax_rate = ?, invoice_type = ?, printer_interface = ?, expense_categories = ?, amount_for_one_point = ?, loyalty_discount_per_point = ? WHERE id = 1`,
             [pharmacy_name || 'EPOS Pharma', phone || '', address || '', email || '',
             typeof payment_methods === 'string' ? payment_methods : JSON.stringify(payment_methods || []),
-            theme || 'green', currency || 'PKR', tax_rate || 0]
+            theme || 'green', currency || 'PKR', tax_rate || 0, invoice_type || 'A6', printer_interface || '',
+            typeof expense_categories === 'string' ? expense_categories : JSON.stringify(expense_categories || ["Rent", "Electricity", "Salaries", "Supplies", "Other"]),
+            parseFloat(amount_for_one_point) || 0,
+            parseFloat(loyalty_discount_per_point) || 0]
         );
         const settings = dbGet('SELECT * FROM settings LIMIT 1');
         res.json(settings);
@@ -71,7 +94,7 @@ router.post('/backup', (req, res) => {
         let backupDir;
         try {
             const { app } = require('electron');
-            backupDir = path.join(app.getPath('userData'), 'backups');
+            backupDir = path.join(app.getPath('documents'), 'EPOS Pharma Backups');
         } catch { backupDir = path.join(__dirname, '..', '..', 'backups'); }
 
         if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
@@ -84,6 +107,38 @@ router.post('/backup', (req, res) => {
         dbRun('INSERT INTO backups (backup_file, size) VALUES (?, ?)', [backupFile, stats.size]);
         res.json({ message: 'Backup created successfully', file: backupFile, size: stats.size });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/settings/upload-backup
+router.post('/upload-backup', (req, res) => {
+    try {
+        const { fileName, data } = req.body;
+        if (!data) return res.status(400).json({ error: 'No data provided' });
+
+        let backupDir;
+        try {
+            const { app } = require('electron');
+            backupDir = path.join(app.getPath('documents'), 'EPOS Pharma Backups');
+        } catch { backupDir = path.join(__dirname, '..', '..', 'backups'); }
+
+        if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const safeFileName = fileName ? fileName.replace(/[^a-z0-9.]/gi, '_') : `uploaded_${timestamp}.sqlite`;
+        const backupFile = path.join(backupDir, safeFileName);
+        
+        // Decode base64 and write to file
+        const buffer = Buffer.from(data, 'base64');
+        fs.writeFileSync(backupFile, buffer);
+
+        const stats = fs.statSync(backupFile);
+        dbRun('INSERT INTO backups (backup_file, size) VALUES (?, ?)', [backupFile, stats.size]);
+        
+        res.json({ message: 'Backup uploaded successfully', file: backupFile, size: stats.size });
+    } catch (err) { 
+        console.error('Upload backup error:', err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 // POST /api/settings/restore

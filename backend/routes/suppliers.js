@@ -1,5 +1,6 @@
 const express = require('express');
-const { dbRun, dbGet, dbAll } = require('../database');
+const { dbRun, dbGet, dbAll, dbExec, saveDb } = require('../database');
+const { requireAdmin } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -59,7 +60,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/suppliers/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
     try {
         // Only allow deletion if there are no purchase invoices attached to this supplier
         const hasPurchases = dbGet('SELECT id FROM purchases WHERE supplier_id = ? LIMIT 1', [parseInt(req.params.id)]);
@@ -109,7 +110,7 @@ router.post('/:id/payment', (req, res) => {
 
         if (!paymentAmount || paymentAmount <= 0) return res.status(400).json({ error: 'Valid payment amount required' });
 
-        dbRun('BEGIN TRANSACTION');
+        dbExec('BEGIN TRANSACTION');
 
         const insert = dbRun(`
             INSERT INTO supplier_payments (supplier_id, amount, method, reference, date) 
@@ -150,16 +151,15 @@ router.post('/:id/payment', (req, res) => {
         }
 
         // Decrease the supplier's outstanding liability balance
-        dbRun(`UPDATE suppliers SET balance = balance - ? WHERE id = ?`, [paymentAmount, id]);
+        dbRun(`UPDATE suppliers SET balance = balance - ? WHERE id = ?`, [paymentAmount, id], true);
 
-        const { saveDb } = require('../database');
+        dbExec('COMMIT');
         saveDb();
-        dbRun('COMMIT');
 
         const supplier = dbGet('SELECT * FROM suppliers WHERE id = ?', [id]);
         res.json({ success: true, payment_id: insert.lastInsertRowid, new_balance: supplier.balance });
     } catch (err) {
-        dbRun('ROLLBACK');
+        try { dbExec('ROLLBACK'); } catch (rbErr) { }
         res.status(500).json({ error: err.message });
     }
 });

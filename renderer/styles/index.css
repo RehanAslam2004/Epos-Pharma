@@ -209,4 +209,26 @@
         margin: 0;
         padding: 0;
     }
+
+    /* A6 Specific Handling */
+    .print-a6 {
+        width: 105mm !important;
+        height: max-content !important;
+        min-height: 148mm !important;
+        padding: 10mm !important;
+        margin: 0 auto !important;
+        background: white !important;
+    }
+
+    /* If they choose Thermal but print anyway, constrain it */
+    .print-thermal {
+        width: 80mm !important;
+        padding: 2mm !important;
+    }
+}
+
+@page {
+    /* If printing A6 class, try to suggest A6 size */
+    size: auto;
+    margin: 0;
 }

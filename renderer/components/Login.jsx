@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { api } from '../api';
+import React, { useState, useEffect } from 'react';
+import { api, getApiBaseUrl, setApiBaseUrl } from '../api';
 
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState('');
@@ -7,6 +7,17 @@ export default function Login({ onLogin }) {
     const [showPw, setShowPw] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showConfig, setShowConfig] = useState(false);
+    const [serverIp, setServerIp] = useState('');
+
+    useEffect(() => {
+        setServerIp(getApiBaseUrl());
+    }, []);
+
+    function handleSaveConfig() {
+        setApiBaseUrl(serverIp);
+        window.location.reload();
+    }
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -113,6 +124,22 @@ export default function Login({ onLogin }) {
                     </form>
 
                     <p className="text-center mt-6 text-xs text-gray-400">Default: <span className="font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">admin</span> / <span className="font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">admin123</span></p>
+
+                    <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+                        <button type="button" onClick={() => setShowConfig(!showConfig)} className="text-xs font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-1.5 mx-auto">
+                            ⚙️ Network Configuration
+                        </button>
+                        {showConfig && (
+                            <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl animate-fade-up">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Server IP Address</label>
+                                <div className="flex gap-2">
+                                    <input className="flex-1 w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sea-500/30" value={serverIp} onChange={e => setServerIp(e.target.value)} placeholder="http://192.168.1.100:3456" />
+                                    <button onClick={handleSaveConfig} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold transition-colors">Apply</button>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-2">Connecting from a secondary register? Enter the main server's IP address.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

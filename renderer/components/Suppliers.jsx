@@ -25,7 +25,7 @@ export default function Suppliers() {
 
     const [formError, setFormError] = useState('');
     const [saving, setSaving] = useState(false);
-    const { addToast } = useContext(AppContext);
+    const { user, addToast } = useContext(AppContext);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -144,7 +144,7 @@ export default function Suppliers() {
                                             <div className="flex gap-2 justify-center">
                                                 <button onClick={() => openProfile(s)} className="text-xs font-semibold px-3 py-1.5 bg-sea-50 dark:bg-sea-900/20 text-sea-600 dark:text-sea-400 rounded-lg hover:bg-sea-100 transition-colors">Profile & Ledger</button>
                                                 <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">✏️</button>
-                                                <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20">🗑️</button>
+                                                {user?.role === 'admin' && <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20">🗑️</button>}
                                             </div>
                                         </td>
                                     </tr>

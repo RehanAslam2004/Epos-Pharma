@@ -12,16 +12,16 @@ export default function Customers() {
     const [deleteId, setDeleteId] = useState(null);
     const [showHistory, setShowHistory] = useState(null);
     const [purchases, setPurchases] = useState([]);
-    const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', type: 'walk-in', notes: '' });
+    const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', type: 'walk-in', notes: '', cnic: '' });
     const [formError, setFormError] = useState('');
     const [saving, setSaving] = useState(false);
-    const { addToast } = useContext(AppContext);
+    const { user, addToast } = useContext(AppContext);
 
     const load = useCallback(async () => { try { let p = ''; if (search) p += `search=${encodeURIComponent(search)}&`; if (typeFilter) p += `type=${typeFilter}&`; setCustomers(await api.getCustomers(p)); } catch (e) { } setLoading(false); }, [search, typeFilter]);
     useEffect(() => { load(); }, [load]);
 
-    function openAdd() { setEditCustomer(null); setForm({ name: '', phone: '', email: '', address: '', type: 'walk-in', notes: '' }); setFormError(''); setShowModal(true); }
-    function openEdit(c) { setEditCustomer(c); setForm({ name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', type: c.type || 'walk-in', notes: c.notes || '' }); setFormError(''); setShowModal(true); }
+    function openAdd() { setEditCustomer(null); setForm({ name: '', phone: '', email: '', address: '', type: 'walk-in', notes: '', cnic: '' }); setFormError(''); setShowModal(true); }
+    function openEdit(c) { setEditCustomer(c); setForm({ name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', type: c.type || 'walk-in', notes: c.notes || '', cnic: c.cnic || '' }); setFormError(''); setShowModal(true); }
 
     async function handleSave(e) { e.preventDefault(); if (!form.name) { setFormError('Name required'); return; } setSaving(true); setFormError(''); try { if (editCustomer) await api.updateCustomer(editCustomer.id, form); else await api.createCustomer(form); setShowModal(false); load(); addToast(editCustomer ? 'Customer updated' : 'Customer added', 'success'); } catch (err) { setFormError(err.message); } setSaving(false); }
     async function handleDelete() { if (!deleteId) return; try { await api.deleteCustomer(deleteId); setDeleteId(null); load(); addToast('Customer deleted', 'success'); } catch (e) { } }
@@ -52,7 +52,7 @@ export default function Customers() {
                                 <td className="px-4 py-3 text-sm text-gray-500">{c.phone || '—'}</td>
                                 <td className="px-4 py-3 text-sm text-gray-500">{c.email || '—'}</td>
                                 <td className="px-4 py-3"><span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${typeBadge[c.type] || typeBadge['walk-in']}`}>{c.type}</span></td>
-                                <td className="px-4 py-3"><div className="flex gap-1"><button onClick={() => viewHistory(c)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 text-xs">📋</button><button onClick={() => openEdit(c)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 text-xs">✏️</button><button onClick={() => setDeleteId(c.id)} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 text-xs">🗑️</button></div></td>
+                                <td className="px-4 py-3"><div className="flex gap-1"><button onClick={() => viewHistory(c)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 text-xs">📋</button><button onClick={() => openEdit(c)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 text-xs">✏️</button>{user?.role === 'admin' && <button onClick={() => setDeleteId(c.id)} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 text-xs">🗑️</button>}</div></td>
                             </tr>
                         ))}</tbody>
                     </table>
@@ -67,7 +67,8 @@ export default function Customers() {
                     <div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Name *</label><input className={inputCls} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
                     <div className="grid grid-cols-2 gap-3"><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Phone</label><input className={inputCls} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Email</label><input className={inputCls} type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div></div>
                     <div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Address</label><input className={inputCls} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
-                    <div className="grid grid-cols-2 gap-3"><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Type</label><select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option value="walk-in">Walk-in</option><option value="regular">Regular</option><option value="wholesale">Wholesale</option></select></div><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</label><input className={inputCls} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div></div>
+                    <div className="grid grid-cols-2 gap-3"><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Type</label><select className={inputCls} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option value="walk-in">Walk-in</option><option value="regular">Regular</option><option value="wholesale">Wholesale</option></select></div><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">CNIC (Ctrl Drugs)</label><input className={inputCls} placeholder="xxxxx-xxxxxxx-x" value={form.cnic} onChange={e => setForm({ ...form, cnic: e.target.value })} /></div></div>
+                    <div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</label><input className={inputCls} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
                 </div><div className="px-6 py-3 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2"><button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400">Cancel</button><button type="submit" disabled={saving} className="px-5 py-2 bg-gradient-to-r from-sea-500 to-sea-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60">{saving ? 'Saving...' : editCustomer ? 'Update' : 'Add'}</button></div></form>
             </div></div>}
 

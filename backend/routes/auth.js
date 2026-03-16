@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { dbRun, dbGet, dbAll } = require('../database');
+const { authMiddleware, requireAdmin } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -47,8 +48,11 @@ router.get('/session', (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// User Management - All require authentication
+router.use('/users', authMiddleware);
+
 // GET /api/auth/users
-router.get('/users', (req, res) => {
+router.get('/users', requireAdmin, (req, res) => {
     try {
         const users = dbAll('SELECT id, username, full_name, role, last_login, created_at FROM users ORDER BY created_at DESC');
         res.json(users);
@@ -56,7 +60,7 @@ router.get('/users', (req, res) => {
 });
 
 // POST /api/auth/users
-router.post('/users', (req, res) => {
+router.post('/users', requireAdmin, (req, res) => {
     try {
         const { username, password, full_name, role } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
@@ -69,7 +73,7 @@ router.post('/users', (req, res) => {
 });
 
 // PUT /api/auth/users/:id
-router.put('/users/:id', (req, res) => {
+router.put('/users/:id', requireAdmin, (req, res) => {
     try {
         const { username, password, full_name, role } = req.body;
         if (password) {
@@ -83,7 +87,7 @@ router.put('/users/:id', (req, res) => {
 });
 
 // DELETE /api/auth/users/:id
-router.delete('/users/:id', (req, res) => {
+router.delete('/users/:id', requireAdmin, (req, res) => {
     try {
         const user = dbGet('SELECT role FROM users WHERE id = ?', [parseInt(req.params.id)]);
         if (user && user.role === 'admin') {

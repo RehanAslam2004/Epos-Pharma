@@ -12,14 +12,26 @@ export default function Expenses({ isMerged }) {
     const { addToast } = useContext(AppContext);
 
     // Form State
-    const [form, setForm] = useState({ category: 'Rent', amount: '', reference: '', notes: '', date: new Date().toISOString().slice(0, 16) });
-    const categories = ['Rent', 'Utilities', 'Salaries', 'Maintenance', 'Marketing', 'Office Supplies', 'Logistics', 'Other'];
+    const [form, setForm] = useState({ category: '', amount: '', reference: '', notes: '', date: new Date().toISOString().slice(0, 16) });
+    const [expenseCategories, setExpenseCategories] = useState(['Rent', 'Utilities', 'Salaries', 'Maintenance', 'Marketing', 'Office Supplies', 'Logistics', 'Other']);
 
     const loadData = async () => {
         try {
-            const [expData, sumData] = await Promise.all([api.getExpenses(), api.getExpenseSummary()]);
+            const [expData, sumData, settingsConfig] = await Promise.all([api.getExpenses(), api.getExpenseSummary(), api.getSettings()]);
             setExpenses(expData);
             setSummary(sumData);
+
+            if (settingsConfig && settingsConfig.expense_categories) {
+                try {
+                    const cats = typeof settingsConfig.expense_categories === 'string'
+                        ? JSON.parse(settingsConfig.expense_categories)
+                        : (Array.isArray(settingsConfig.expense_categories) ? settingsConfig.expense_categories : expenseCategories);
+                    setExpenseCategories(cats);
+                    if (cats.length > 0 && !form.category) {
+                        setForm(f => ({ ...f, category: cats[0] }));
+                    }
+                } catch (e) { }
+            }
         } catch (err) {
             addToast(err.message || 'Failed to load expenses', 'error');
         }
@@ -35,7 +47,7 @@ export default function Expenses({ isMerged }) {
             await api.createExpense({ ...form, amount: parseFloat(form.amount) });
             addToast('Expense logged successfully', 'success');
             setShowModal(false);
-            setForm({ category: 'Rent', amount: '', reference: '', notes: '', date: new Date().toISOString().slice(0, 16) });
+            setForm({ category: expenseCategories[0] || 'Rent', amount: '', reference: '', notes: '', date: new Date().toISOString().slice(0, 16) });
             loadData();
         } catch (err) {
             addToast(err.message || 'Failed to save expense', 'error');
@@ -152,7 +164,7 @@ export default function Expenses({ isMerged }) {
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
                                     <select className={inputCls} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                        {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </div>
                             </div>

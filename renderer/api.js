@@ -1,4 +1,22 @@
-const API_BASE = 'http://127.0.0.1:3456/api';
+let API_BASE = localStorage.getItem('epos_api_url')
+    ? `${localStorage.getItem('epos_api_url')}/api`
+    : 'http://127.0.0.1:3456/api';
+
+function setApiBaseUrl(url) {
+    if (url) {
+        // Strip trailing slash if present, and remove /api if user added it
+        let cleanUrl = url.replace(/\/+$/, '').replace(/\/api$/, '');
+        localStorage.setItem('epos_api_url', cleanUrl);
+        API_BASE = `${cleanUrl}/api`;
+    } else {
+        localStorage.removeItem('epos_api_url');
+        API_BASE = 'http://127.0.0.1:3456/api';
+    }
+}
+
+function getApiBaseUrl() {
+    return localStorage.getItem('epos_api_url') || 'http://127.0.0.1:3456';
+}
 
 function getToken() {
     return localStorage.getItem('epos_token');
@@ -63,6 +81,8 @@ export const api = {
     getSales: (params = '') => request(`/sales?${params}`),
     getSale: (id) => request(`/sales/${id}`),
     createSale: (data) => request('/sales', { method: 'POST', body: JSON.stringify(data) }),
+    returnSale: (id, items = null) => request(`/sales/${id}/return`, { method: 'POST', body: items ? JSON.stringify({ items }) : undefined }),
+    printReceipt: (data) => request('/print/receipt', { method: 'POST', body: JSON.stringify(data) }),
     getTodaySales: () => request('/sales/today'),
     getMonthlySales: () => request('/sales/monthly'),
 
@@ -103,6 +123,7 @@ export const api = {
     getCustomerReport: () => request('/reports/customers'),
     getSupplierReport: () => request('/reports/suppliers'),
     getPaymentReport: (params = '') => request(`/reports/payments?${params}`),
+    getStockMovements: (params = '') => request(`/reports/stock-movements?${params}`),
 
     // Settings
     getSettings: () => request('/settings'),
@@ -110,8 +131,10 @@ export const api = {
     getTrial: () => request('/settings/trial'),
     activateLicense: (key) => request('/settings/license', { method: 'POST', body: JSON.stringify({ license_key: key }) }),
     createBackup: () => request('/settings/backup', { method: 'POST' }),
+    uploadBackup: (fileName, base64Data) => request('/settings/upload-backup', { method: 'POST', body: JSON.stringify({ fileName, data: base64Data }) }),
     restoreBackup: (file) => request('/settings/restore', { method: 'POST', body: JSON.stringify({ backup_file: file }) }),
     getBackups: () => request('/settings/backups'),
+    getNetwork: () => request('/settings/network'),
 
     // Notifications
     getNotifications: () => request('/notifications').catch(() => []),
@@ -122,4 +145,4 @@ export const api = {
     completeSetup: (data) => request('/setup/complete', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-export { getToken, setToken, removeToken, setUser, getUser };
+export { getToken, setToken, removeToken, setUser, getUser, setApiBaseUrl, getApiBaseUrl };

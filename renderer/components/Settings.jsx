@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { api } from '../api';
 import { AppContext } from '../App';
-import { Settings as SettingsIcon, Palette, Users as UsersIcon, Key, Database, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, Users as UsersIcon, Key, Database, Info, Globe, MonitorSmartphone } from 'lucide-react';
 
 export default function Settings() {
     const [tab, setTab] = useState('general');
@@ -11,23 +11,66 @@ export default function Settings() {
     const [backups, setBackups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [generalForm, setGeneralForm] = useState({ pharmacy_name: '', phone: '', address: '', email: '', currency: 'PKR', tax_rate: 0 });
+    const [generalForm, setGeneralForm] = useState({ pharmacy_name: '', phone: '', address: '', email: '', currency: 'PKR', tax_rate: 0, invoice_type: 'A6', printer_interface: '', expense_categories: [], amount_for_one_point: 0, loyalty_discount_per_point: 0 });
     const [licenseKey, setLicenseKey] = useState('');
+    const [networkIp, setNetworkIp] = useState('');
     const [showUserModal, setShowUserModal] = useState(false);
     const [editUser, setEditUser] = useState(null);
     const [userForm, setUserForm] = useState({ username: '', password: '', full_name: '', role: 'staff' });
     const [userFormError, setUserFormError] = useState('');
-    const { addToast, dark, setDark } = useContext(AppContext);
+    const { addToast, dark, setDark, user } = useContext(AppContext);
 
     useEffect(() => {
-        Promise.all([api.getSettings(), api.getTrial(), api.getUsers(), api.getBackups()])
-            .then(([s, t, u, b]) => { setSettings(s); setTrial(t); setUsers(u); setBackups(b); if (s) setGeneralForm({ pharmacy_name: s.pharmacy_name || '', phone: s.phone || '', address: s.address || '', email: s.email || '', currency: s.currency || 'PKR', tax_rate: s.tax_rate || 0 }); })
-            .catch(console.error).finally(() => setLoading(false));
-    }, []);
+        // Fetch core data (available to all)
+        api.getSettings().then(s => {
+            if (s) {
+                setSettings(s);
+                setGeneralForm({
+                    pharmacy_name: s.pharmacy_name || '',
+                    phone: s.phone || '',
+                    address: s.address || '',
+                    email: s.email || '',
+                    currency: s.currency || 'PKR',
+                    tax_rate: s.tax_rate || 0,
+                    invoice_type: s.invoice_type || 'A6',
+                    printer_interface: s.printer_interface || '',
+                    expense_categories: (typeof s.expense_categories === 'string' ? JSON.parse(s.expense_categories) : Array.isArray(s.expense_categories) ? s.expense_categories : ["Rent", "Electricity", "Salaries", "Supplies", "Other"]),
+                    amount_for_one_point: s.amount_for_one_point || 0,
+                    loyalty_discount_per_point: s.loyalty_discount_per_point || 0
+                });
+            }
+        }).catch(console.error);
+
+        api.getTrial().then(setTrial).catch(console.error).finally(() => setLoading(false));
+
+        // Use role from AppContext for restricted data
+        if (user?.role === 'admin') {
+            api.getUsers().then(setUsers).catch(console.error);
+            api.getBackups().then(setBackups).catch(console.error);
+        }
+
+        api.getNetwork().then(res => setNetworkIp(res.ip)).catch(console.error);
+    }, [user]);
 
     async function saveGeneral() { setSaving(true); try { await api.updateSettings(generalForm); addToast('Settings saved', 'success'); } catch (e) { addToast(e.message, 'error'); } setSaving(false); }
     async function activateLicense() { if (!licenseKey) { addToast('Enter a key', 'warning'); return; } setSaving(true); try { await api.activateLicense(licenseKey); addToast('License activated!', 'success'); setTrial(await api.getTrial()); } catch (e) { addToast(e.message, 'error'); } setSaving(false); }
-    async function createBackup() { setSaving(true); try { await api.createBackup(); addToast('Backup created', 'success'); setBackups(await api.getBackups()); } catch (e) { addToast(e.message, 'error'); } setSaving(false); }
+    async function createBackup() { setSaving(true); try { await api.createBackup(); addToast('Backup created', 'success'); api.getBackups().then(setBackups); } catch (e) { addToast(e.message, 'error'); } setSaving(false); }
+    async function handleUploadBackup(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        setSaving(true);
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64Data = reader.result.split(',')[1];
+                await api.uploadBackup(file.name, base64Data);
+                addToast('Backup uploaded and added to list', 'success');
+                api.getBackups().then(setBackups);
+            };
+        } catch (e) { addToast(e.message, 'error'); }
+        setSaving(false);
+    }
     async function restoreBackup(file) { if (!confirm('Replace database? Restart needed.')) return; try { await api.restoreBackup(file); addToast('Restored. Restart now.', 'success'); } catch (e) { addToast(e.message, 'error'); } }
     function openAddUser() { setEditUser(null); setUserForm({ username: '', password: '', full_name: '', role: 'staff' }); setUserFormError(''); setShowUserModal(true); }
     function openEditUser(u) { setEditUser(u); setUserForm({ username: u.username, password: '', full_name: u.full_name || '', role: u.role || 'staff' }); setUserFormError(''); setShowUserModal(true); }
@@ -36,7 +79,7 @@ export default function Settings() {
 
     if (loading) return <div className="flex items-center justify-center h-[60vh]"><div className="w-7 h-7 border-[3px] border-gray-200 dark:border-gray-700 border-t-sea-600 rounded-full animate-spin" /></div>;
 
-    const tabItems = [{ key: 'general', icon: <SettingsIcon size={18} />, label: 'General' }, { key: 'appearance', icon: <Palette size={18} />, label: 'Appearance' }, { key: 'users', icon: <UsersIcon size={18} />, label: 'Users' }, { key: 'license', icon: <Key size={18} />, label: 'License' }, { key: 'backup', icon: <Database size={18} />, label: 'Backup' }, { key: 'about', icon: <Info size={18} />, label: 'About' }];
+    const tabItems = [{ key: 'general', icon: <SettingsIcon size={18} />, label: 'General' }, { key: 'appearance', icon: <Palette size={18} />, label: 'Appearance' }, { key: 'users', icon: <UsersIcon size={18} />, label: 'Users' }, { key: 'network', icon: <Globe size={18} />, label: 'Network' }, { key: 'license', icon: <Key size={18} />, label: 'License' }, { key: 'backup', icon: <Database size={18} />, label: 'Backup' }, { key: 'about', icon: <Info size={18} />, label: 'About' }];
     const inputCls = "w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sea-500/30 focus:border-sea-500 transition-all";
 
     return (
@@ -50,7 +93,48 @@ export default function Settings() {
                 <div className="grid grid-cols-2 gap-4"><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Pharmacy Name</label><input className={inputCls} value={generalForm.pharmacy_name} onChange={e => setGeneralForm({ ...generalForm, pharmacy_name: e.target.value })} /></div><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Phone</label><input className={inputCls} value={generalForm.phone} onChange={e => setGeneralForm({ ...generalForm, phone: e.target.value })} /></div></div>
                 <div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Address</label><input className={inputCls} value={generalForm.address} onChange={e => setGeneralForm({ ...generalForm, address: e.target.value })} /></div>
                 <div className="grid grid-cols-3 gap-4"><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Email</label><input className={inputCls} type="email" value={generalForm.email} onChange={e => setGeneralForm({ ...generalForm, email: e.target.value })} /></div><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Currency</label><select className={inputCls} value={generalForm.currency} onChange={e => setGeneralForm({ ...generalForm, currency: e.target.value })}><option value="PKR">PKR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div><div><label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Tax Rate (%)</label><input className={inputCls} type="number" step="0.1" value={generalForm.tax_rate} onChange={e => setGeneralForm({ ...generalForm, tax_rate: parseFloat(e.target.value) || 0 })} /></div></div>
-                <button onClick={saveGeneral} disabled={saving} className="px-5 py-2 bg-gradient-to-r from-sea-500 to-sea-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60 mt-2">{saving ? 'Saving...' : 'Save Settings'}</button>
+
+                <div className="mt-6 border-t border-gray-100 dark:border-gray-700 pt-5"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Expense Categories</h3>
+                    <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Categories (comma separated)</label>
+                        <input className={inputCls} value={generalForm.expense_categories?.join(', ') || ''} onChange={e => setGeneralForm({ ...generalForm, expense_categories: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} placeholder="e.g. Rent, Salaries, Utilities" />
+                    </div>
+                </div>
+
+                <div className="mt-6 border-t border-gray-100 dark:border-gray-700 pt-5"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Customer Loyalty Points Config</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Spend ({generalForm.currency}) to Earn 1 Point</label>
+                            <input type="number" step="0.5" className={inputCls} value={generalForm.amount_for_one_point} onChange={e => setGeneralForm({ ...generalForm, amount_for_one_point: parseFloat(e.target.value) || 0 })} placeholder="e.g. 100" />
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Discount ({generalForm.currency}) per Point</label>
+                            <input type="number" step="0.5" className={inputCls} value={generalForm.loyalty_discount_per_point} onChange={e => setGeneralForm({ ...generalForm, loyalty_discount_per_point: parseFloat(e.target.value) || 0 })} placeholder="e.g. 1" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-6 border-t border-gray-100 dark:border-gray-700 pt-5"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Invoice & Printer Settings</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Invoice Format</label>
+                            <select className={inputCls} value={generalForm.invoice_type} onChange={e => setGeneralForm({ ...generalForm, invoice_type: e.target.value })}>
+                                <option value="A6">A6 Document (Standard Printer)</option>
+                                <option value="Thermal">Thermal Receipt (ESC/POS Printer)</option>
+                            </select>
+                            <p className="text-[10px] text-gray-400 mt-1">Select A6 if using a standard ink/laser printer or A6 label printer. Select Thermal for 58mm/80mm roll printers.</p>
+                        </div>
+                        {generalForm.invoice_type === 'Thermal' && (
+                            <div className="animate-fade-in">
+                                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Printer Interface Connection</label>
+                                <input className={inputCls} placeholder="e.g., //localhost/ReceiptPrinter or USB001" value={generalForm.printer_interface} onChange={e => setGeneralForm({ ...generalForm, printer_interface: e.target.value })} />
+                                <p className="text-[10px] text-amber-500 mt-1">For Windows: share your printer and enter `//localhost/ShareName` or use raw USB interfaces.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <button onClick={saveGeneral} disabled={saving} className="px-5 py-2 bg-gradient-to-r from-sea-500 to-sea-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60 mt-4">{saving ? 'Saving...' : 'Save Settings'}</button>
             </div></div>}
 
             {/* Appearance */}
@@ -60,6 +144,27 @@ export default function Settings() {
                     <button onClick={() => setDark(!dark)} className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${dark ? 'bg-sea-600' : 'bg-gray-300'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${dark ? 'translate-x-6' : 'translate-x-0'}`} /></button>
                 </div>
             </div></div>}
+
+            {/* Network */}
+            {tab === 'network' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up">
+                <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Network Server (Multi-Register Sync)</h3></div>
+                <div className="p-6">
+                    <div className="bg-sea-50 dark:bg-sea-900/20 border border-sea-200 dark:border-sea-800 rounded-xl p-5 mb-5 flex gap-4">
+                        <MonitorSmartphone className="text-sea-500 w-10 h-10 shrink-0" />
+                        <div>
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Server Hosting Enabled</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-3">This machine is automatically hosting the database server on its local IP address. To connect another computer on the same Wi-Fi/LAN, enter the address below into their Login Screen "Network Configuration".</p>
+
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Server IP Address (Local IPv4)</label>
+                            <div className="flex gap-2 items-center">
+                                <div className="text-lg font-mono text-sea-600 dark:text-sea-400 font-extrabold tracking-widest bg-white dark:bg-gray-800 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-gray-700 select-all shadow-sm">
+                                    http://{networkIp || '127.0.0.1'}:3456
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>}
 
             {/* License */}
             {tab === 'license' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">License & Activation</h3></div><div className="p-6">
@@ -92,7 +197,43 @@ export default function Settings() {
             </div></div>}
 
             {/* Backups */}
-            {tab === 'backup' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up"><div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">System Backups</h3><button onClick={createBackup} disabled={saving} className="px-3 py-1.5 bg-sea-50 dark:bg-sea-900/30 text-sea-600 dark:text-sea-400 font-semibold rounded-lg text-xs hover:bg-sea-100 dark:hover:bg-sea-800/50 transition-colors">Create Backup Now</button></div><div className="p-0"><table className="w-full text-left border-collapse text-sm"><thead><tr className="bg-gray-50/50 dark:bg-gray-800/50 text-gray-500 font-semibold flex"><th className="px-5 py-3 flex-1 font-semibold">Date</th><th className="px-5 py-3 w-40 font-semibold">File Size</th><th className="px-5 py-3 w-28 text-center font-semibold text-gray-400">Restore</th></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-700/50 flex flex-col max-h-[400px] overflow-y-auto">{backups.map(b => (<tr key={b.id} className="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group"><td className="px-5 py-3 flex-1 truncate text-gray-800 dark:text-gray-200">{new Date(b.date).toLocaleString()}</td><td className="px-5 py-3 w-40 text-gray-500">{(b.size / 1024).toFixed(1)} KB</td><td className="px-5 py-3 w-28 text-center"><button onClick={() => restoreBackup(b.backup_file)} className="text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 p-1.5 rounded transition-colors opacity-0 group-hover:opacity-100"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button></td></tr>))}</tbody></table>{backups.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No backups found</div>}</div></div>}
+            {tab === 'backup' && <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden animate-fade-up">
+                <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">System Backups</h3>
+                    <div className="flex gap-2">
+                        <label className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-xs cursor-pointer hover:bg-gray-200 transition-colors">
+                            Upload Backup
+                            <input type="file" className="hidden" accept=".sqlite,.db" onChange={handleUploadBackup} />
+                        </label>
+                        <button onClick={createBackup} disabled={saving} className="px-3 py-1.5 bg-sea-50 dark:bg-sea-900/30 text-sea-600 dark:text-sea-400 font-semibold rounded-lg text-xs hover:bg-sea-100 dark:hover:bg-sea-800/50 transition-colors">Create Backup Now</button>
+                    </div>
+                </div>
+                <div className="p-0">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr className="bg-gray-50/50 dark:bg-gray-800/50 text-gray-500 font-semibold flex">
+                                <th className="px-5 py-3 flex-1 font-semibold">Date</th>
+                                <th className="px-5 py-3 w-40 font-semibold">File Size</th>
+                                <th className="px-5 py-3 w-28 text-center font-semibold text-gray-400">Restore</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50 flex flex-col max-h-[400px] overflow-y-auto">
+                            {backups.map(b => (
+                                <tr key={b.id} className="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
+                                    <td className="px-5 py-3 flex-1 truncate text-gray-800 dark:text-gray-200">{new Date(b.date).toLocaleString()}</td>
+                                    <td className="px-5 py-3 w-40 text-gray-500">{(b.size / 1024).toFixed(1)} KB</td>
+                                    <td className="px-5 py-3 w-28 text-center">
+                                        <button onClick={() => restoreBackup(b.backup_file)} className="text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 p-1.5 rounded transition-colors opacity-0 group-hover:opacity-100">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {backups.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No backups found</div>}
+                </div>
+            </div>}
 
             {/* About Tab */}
             {tab === 'about' && (
